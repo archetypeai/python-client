@@ -32,6 +32,9 @@ def main(args):
 
     # Print the summarization results.
     logging.info(response_data["response"]["processed_text"])
+    # Print the bounding boxes of any key objects in the image.
+    for item in response_data["response"]["bboxes"]:
+        logging.info(f"Detected {item['name']}: {item['bbox']}")
 
 
 if __name__ == "__main__":
