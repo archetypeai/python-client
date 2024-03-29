@@ -1,4 +1,4 @@
-# An example that demonstrates how to use the sensor streaming API.
+# An example that demonstrates how to use the Archetype AI sensor streaming API.
 import argparse
 import logging
 import sys

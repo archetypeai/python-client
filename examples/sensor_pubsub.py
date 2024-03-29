@@ -1,4 +1,4 @@
-# An example that demonstrates how to use the sensor messaging API.
+# An example that demonstrates how to use the Archetype AI sensor messaging API.
 import argparse
 import logging
 import sys

@@ -1,4 +1,4 @@
-# An example that demonstrates how to use the video description API.
+# An example that demonstrates how to use the Archetype AI video description API.
 import argparse
 import logging
 import sys
