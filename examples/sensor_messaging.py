@@ -9,7 +9,7 @@ from archetypeai.sensor_client import SensorClient
 
 def main(args):
     # Create a new client using you unique API key.
-    client = SensorClient(args.api_key, "https://staging.archetypeai.dev/v0.4")
+    client = SensorClient(args.api_key)
 
     # Register the sensor with the Archetype AI cloud. Registering your sensor will create
     # a unique sensor ID for this session and open a dedicated endpoint to stream sensor data.
