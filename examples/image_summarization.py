@@ -2,17 +2,14 @@
 import argparse
 import logging
 import sys
-import os
 
 from archetypeai.api_client import ArchetypeAI
-
 
 def _validate_result(status_code: int, response_data: dict) -> bool:
     success = status_code == 200
     if not success:
         logging.error(f"Error: {status_code} data: {response_data}")
     return success
-
 
 def main(args):
     # Create a new client using you unique API key.

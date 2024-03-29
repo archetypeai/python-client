@@ -1,9 +1,7 @@
-# An example that demonstrates how to use the image summarization API.
+# An example that demonstrates how to use the sensor streaming API.
 import argparse
 import logging
 import sys
-import os
-import time
 
 from archetypeai.sensor_client import SensorClient
 
@@ -29,7 +27,7 @@ def main(args):
 
 if __name__ == "__main__":
     log_format = '[%(asctime)s] %(message)s'
-    logging.basicConfig(level=logging.DEBUG, format=log_format, datefmt='%H:%M:%S', stream=sys.stdout)
+    logging.basicConfig(level=logging.INFO, format=log_format, datefmt='%H:%M:%S', stream=sys.stdout)
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--sensor_name", required=True, type=str)
