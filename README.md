@@ -21,12 +21,12 @@ You can find examples of how to use the python client in the examples directory.
 
 ```
 cd examples
-python -m image_summarization --api_key=<YOU_API_KEY> --filename=example_image.png --query="Describe the image."
+python -m image_summarization --api_key=<YOU_API_KEY> --filename=<YOUR_IMAGE> --query="Describe the image."
 ```
 
 ```
 cd examples
-python -m video_description --api_key=<YOU_API_KEY> --filename=example_video.mp4 --query="Describe the video."
+python -m video_description --api_key=<YOU_API_KEY> --filename=<YOUR_VIDEO> --query="Describe the video."
 ```
 
 ## Requirements
