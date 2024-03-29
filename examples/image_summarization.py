@@ -35,11 +35,11 @@ def main(args):
 
 
 if __name__ == "__main__":
-    log_format = '[%(asctime)s] %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_format, datefmt='%H:%M:%S', stream=sys.stdout)
+    log_format = "[%(asctime)s] %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_format, datefmt="%H:%M:%S", stream=sys.stdout)
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--filename", required=True, type=str)
-    parser.add_argument("--query", default='Describe the image', type=str)
+    parser.add_argument("--query", default="Describe the image", type=str)
     args = parser.parse_args()
     main(args)
