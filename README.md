@@ -7,13 +7,13 @@ The Archetype AI API and python client requires an API key to upload, stream, an
 Developers can request early access to the Archetype AI platform via: https://www.archetypeai.io
 
 ## Installation
-You can install the Archetype AI python client via:
+As a best practice, we recomend using a virtual environment such as Conda.
 
+You can install the Archetype AI python client via:
 ```
 git clone git@github.com:archetypeai/python-client.git
-cd python-client/src
-python pip install -r requirements.txt
-python pip install .
+python -m pip install -r requirements.txt
+python -m pip install /src
 ```
 
 ## Examples
@@ -21,12 +21,12 @@ You can find examples of how to use the python client in the examples directory.
 
 ```
 cd examples
-python image_summarization.py --api_key=<YOU_API_KEY> --filename=example_image.png --query="Describe the image."
+python -m image_summarization --api_key=<YOU_API_KEY> --filename=example_image.png --query="Describe the image."
 ```
 
 ```
 cd examples
-python video_description.py --api_key=<YOU_API_KEY> --filename=example_video.mp4 --query="Describe the video."
+python -m video_description --api_key=<YOU_API_KEY> --filename=example_video.mp4 --query="Describe the video."
 ```
 
 ## Requirements
