@@ -12,8 +12,9 @@ As a best practice, we recomend using a virtual environment such as Conda.
 You can install the Archetype AI python client via:
 ```
 git clone git@github.com:archetypeai/python-client.git
-python -m pip install -r requirements.txt
-python -m pip install /src
+cd python-client
+python -m pip install -r src/requirements.txt
+python -m pip install src/
 ```
 
 ## Examples
