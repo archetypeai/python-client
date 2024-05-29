@@ -1,40 +1,43 @@
 # An example that demonstrates how to use the Archetype AI sensor messaging API.
+# usage:
+#   python examples.sensor_pubsub --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
 import logging
 import sys
 import os
 import time
 
-from archetypeai.sensor_client import SensorClient
+from archetypeai.api_client import ArchetypeAI
+
 
 def main(args):
     # Create a new client using you unique API key.
-    client = SensorClient(args.api_key)
+    client = ArchetypeAI(args.api_key, api_endpoint="https://staging.archetypeai.dev/v0.4")
 
     # Register the sensor with the Archetype AI cloud. Registering your sensor will create
     # a unique sensor ID for this session and open a dedicated endpoint to stream sensor data.
     # Any data or events sent will only be accessible by members as the same org_id as your api_key.
-    client.register(args.sensor_name, topic_ids=[args.subscriber_topic_id])
+    client.sensors.register(args.sensor_name, topic_ids=[args.subscriber_topic_id])
 
     # Broadcast a message to all clients listening across your org listening on the topic_id.
     logging.info(f"Sending message on topic_id={args.publisher_topic_id}")
-    client.send(topic_id=args.publisher_topic_id, data={"message": f"hi, this is {args.sensor_name}"})
+    client.sensors.send(topic_id=args.publisher_topic_id, data={"message": f"hi, this is {args.sensor_name}"})
 
     # Listen for incoming messages.
     message_counter = 0
     while message_counter < args.num_messages_to_receive:
         # Consume any messages that were sent to the client.
-        for topic_id, data in client.get_messages():
+        for topic_id, data in client.sensors.get_messages():
             logging.info(f"Received: topic_id={topic_id} data={data}")
             message_counter += 1
         time.sleep(0.1)
 
     # Broadcast a closing message to all clients listening across your org listening on the topic_id.
     logging.info(f"Sending message on topic_id={args.publisher_topic_id}")
-    client.send(topic_id=args.publisher_topic_id, data={"message": "bye!"})
+    client.sensors.send(topic_id=args.publisher_topic_id, data={"message": "bye!"})
 
     # Cleanly shut down the connection.
-    client.close()
+    client.sensors.close()
 
 
 if __name__ == "__main__":

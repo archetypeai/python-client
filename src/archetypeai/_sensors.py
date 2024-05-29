@@ -3,26 +3,23 @@ import json
 import os
 import time
 from queue import Queue
-from typing import Any, Dict, List, Tuple
+from typing import Any
 import threading
 
-import requests
 from websocket import create_connection
 
-from archetypeai.common import DEFAULT_ENDPOINT, safely_extract_response_data
+from archetypeai._base import ApiBase
 
 _CTRL_MSG_HEADER = "cm"
 _DATA_MSG_HEADER = "dm"
 _HEARTBEAT_DELAY_SEC = 0.1
 
 
-class SensorClient:
+class SensorsApi(ApiBase):
     """Main sensor client for streaming data to the Archetype AI platform."""
 
-    def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT) -> None:
-        self.api_key = api_key
-        self.api_endpoint = api_endpoint
-        self.auth_headers = {"Authorization": f"Bearer {self.api_key}"}
+    def __init__(self, api_key: str, api_endpoint: str) -> None:
+        super().__init__(api_key, api_endpoint)
         self.stream_uid = None
         self.streamer_endpoint = None
         self.streamer_socket = None
@@ -33,21 +30,18 @@ class SensorClient:
         self._run_worker_loop = False
         self.thread = None
     
-    def register(self, sensor_name: str, sensor_metadata: Dict = {}, topic_ids: List[str] = []) -> bool:
+    def register(self, sensor_name: str, sensor_metadata: dict = {}, topic_ids: list[str] = []) -> bool:
         """Registers a sensor with the Archetype AI platform."""
         api_endpoint = os.path.join(self.api_endpoint, "sensors")
         data_payload = {"sensor_name": sensor_name, "sensor_metadata": sensor_metadata, "topic_ids": topic_ids}
-        response = requests.post(api_endpoint, data=json.dumps(data_payload), headers=self.auth_headers)
-        response_data = safely_extract_response_data(response)
-        if response.status_code == 200:
-            self.stream_uid = response_data["stream_uid"]
-            self.streamer_endpoint = response_data["sensor_endpoint"]
-            logging.debug(f"Successfully registered sensor {sensor_name} stream_uid: {self.stream_uid}")
-            assert self._handshake()
-            self.thread = threading.Thread(target=self._worker, args=())
-            self.thread.start()
-            return True
-        raise Exception(f"Error: {response.status_code} {response_data}")
+        response_data = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
+        self.stream_uid = response_data["stream_uid"]
+        self.streamer_endpoint = response_data["sensor_endpoint"]
+        logging.debug(f"Successfully registered sensor {sensor_name} stream_uid: {self.stream_uid}")
+        assert self._handshake()
+        self.thread = threading.Thread(target=self._worker, args=())
+        self.thread.start()
+        return True
 
     def close(self, wait_on_pending_data: bool = True):
         """Closes the connection with the server."""
@@ -107,7 +101,7 @@ class SensorClient:
         message = {"h": _CTRL_MSG_HEADER, "topic_id": "ctl_msg/handshake", "data": {}, "timestamp": time.time()}
         return self._send_control_message(message)
 
-    def _send_control_message(self, message: Dict) -> bool:
+    def _send_control_message(self, message: dict) -> bool:
         assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
         assert message["h"] == _CTRL_MSG_HEADER
         assert self._send_data(message) > 0
@@ -121,7 +115,7 @@ class SensorClient:
                 self.incoming_message_queue.put((response["topic_id"], response["data"]))
         return True
 
-    def _send_data_message(self, message: Dict) -> bool:
+    def _send_data_message(self, message: dict) -> bool:
         assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
         assert message["h"] == _DATA_MSG_HEADER
         num_bytes_sent = self._send_data(message)
@@ -133,11 +127,11 @@ class SensorClient:
         logging.warning(f"Failed to receive ack! Got: {response}")
         return False
 
-    def _send_data(self, message: Dict) -> int:
+    def _send_data(self, message: dict) -> int:
         message_bytes = self._encode_data_to_send(message)
         self.streamer_socket.send_binary(message_bytes)
         num_bytes_sent = len(message_bytes)
         return num_bytes_sent
     
-    def _encode_data_to_send(self, data: Dict[str, Any]) -> bytes:
+    def _encode_data_to_send(self, data: dict[str, Any]) -> bytes:
         return json.dumps(data).encode()
