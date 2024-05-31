@@ -1,7 +1,7 @@
 import requests
 from typing import Dict
 
-DEFAULT_ENDPOINT = 'https://api.archetypeai.dev/v0.4'
+DEFAULT_ENDPOINT = "https://staging.archetypeai.dev/v0.4"
 
 
 def safely_extract_response_data(response: requests.Response) -> Dict:
