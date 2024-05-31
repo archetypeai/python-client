@@ -46,11 +46,15 @@ class LocalFilesApi(FilesApiBase):
 class S3FilesApi(FilesApiBase):
     """API for working with Amazon s3 files."""
 
-    def upload(self, filenames: list[str], credentials: Dict[str, str] | None = None) -> dict:
+    def upload(self, filenames: list[str], credentials: Dict[str, str] | None = None, batch_size: int = 64) -> dict:
         """Uploads a list of s3 files directly to the Archetype AI platform."""
         api_endpoint = os.path.join(self.api_endpoint, "files/s3")
-        data_payload = {"credentials": credentials, "filenames": filenames}
-        response_data = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
+        num_files = len(filenames)
+        response_data = []
+        for batch_start in range(0, num_files, batch_size):
+            batch_end = min(batch_start + batch_size, num_files)
+            data_payload = {"credentials": credentials, "filenames": filenames[batch_start:batch_end]}
+            response_data.append(self.requests_post(api_endpoint, data_payload=json.dumps(data_payload)))
         return response_data
 
 

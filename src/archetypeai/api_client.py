@@ -27,31 +27,3 @@ class ArchetypeAI(ApiBase):
         self.capabilities = CapabilitiesApi(api_key, api_endpoint)
         self.data_processing = DataProcessingApi(api_key, api_endpoint)
         self.sensors = SensorsApi(api_key, api_endpoint)
-
-    ##### EVERYTHING BELOW IS LEGACY AND NEEDS REFACTORED!!! ####
-
-    def datasets_create(self, dataset_config: dict) -> Tuple[int, Dict]:
-        """TODO"""
-        api_endpoint = os.path.join(self.api_endpoint, 'datasets/create')
-        data_payload = {"dataset_config": dataset_config}
-        response = requests.post(api_endpoint, data=json.dumps(data_payload), headers=self.auth_headers)
-        return response.status_code, safely_extract_response_data(response)
-    
-    def datasets_modify(self, dataset_uid: str, modification_config: dict) -> Tuple[int, Dict]:
-        """TODO"""
-        api_endpoint = os.path.join(self.api_endpoint, 'datasets/modify')
-        data_payload = {"dataset_uid": dataset_uid, "modification_config": modification_config}
-        response = requests.post(api_endpoint, data=json.dumps(data_payload), headers=self.auth_headers)
-        return response.status_code, safely_extract_response_data(response)
-
-    def datasets_get_info(self, dataset_uid: str) -> Tuple[int, Dict]:
-        """TODO"""
-        api_endpoint = os.path.join(self.api_endpoint, 'datasets/info')
-        response = requests.get(api_endpoint, params={"dataset_uid": dataset_uid}, headers=self.auth_headers)
-        return response.status_code, safely_extract_response_data(response)
-
-    def datasets_get_metadata(self, dataset_uid: str) -> Tuple[int, Dict]:
-        """TODO"""
-        api_endpoint = os.path.join(self.api_endpoint, 'datasets/metadata')
-        response = requests.get(api_endpoint, params={"dataset_uid": dataset_uid}, headers=self.auth_headers)
-        return response.status_code, safely_extract_response_data(response)
