@@ -10,7 +10,7 @@ from archetypeai.api_client import ArchetypeAI
 
 def main(args):
     # Create a new client using you unique API key.
-    client = ArchetypeAI(args.api_key, api_endpoint="https://staging.archetypeai.dev/v0.4")
+    client = ArchetypeAI(args.api_key)
 
     # Upload a local file to the Archetype AI platform. Any data uploaded
     # will only be visible and accessible by other members of your org.
