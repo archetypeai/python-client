@@ -13,8 +13,7 @@ You can install the Archetype AI python client via:
 ```
 git clone git@github.com:archetypeai/python-client.git
 cd python-client
-python -m pip install -r src/requirements.txt
-python -m pip install src/
+python -m pip install .
 ```
 
 ## Examples
