@@ -6,7 +6,8 @@ setup(
     author="Archetype AI",
     url="https://github.com/archetypeai/python-client",
     description="The official python client for the Archetype AI API.",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     python_requires=">=3.10",
     install_requires=[
         "wheel",
