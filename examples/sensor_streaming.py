@@ -24,6 +24,11 @@ def main(args):
     for counter in range(args.num_events):
         logging.info("Sending data...")
         client.sensors.send(topic_id="sensor_data", data={"counter": counter})
+
+        # Get some real-time stats on the data being sent.
+        message_latency_ms = client.sensors.get_outgoing_message_queue_latency() * 1000.0
+        queue_size = client.sensors.get_outgoing_message_queue_size()
+        logging.info(f"message latency: {message_latency_ms:.2f} ms | queue size: {queue_size}")
         time.sleep(0.1)
     logging.info("Sending last event...")
     client.sensors.send(topic_id="sensor_events", data="See you later...")
