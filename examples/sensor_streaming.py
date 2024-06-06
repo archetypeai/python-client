@@ -3,6 +3,7 @@
 #   python examples.sensor_streaming --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
 import logging
+import time
 
 from archetypeai.api_client import ArchetypeAI
 
@@ -23,12 +24,17 @@ def main(args):
     for counter in range(args.num_events):
         logging.info("Sending data...")
         client.sensors.send(topic_id="sensor_data", data={"counter": counter})
+        time.sleep(0.1)
     logging.info("Sending last event...")
     client.sensors.send(topic_id="sensor_events", data="See you later...")
 
     # Cleanly shut down the connection.
     logging.info("Closing connection")
     client.sensors.close()
+
+    # Get some stats about the streamed data.
+    stats = client.sensors.get_stats()
+    logging.info(f"stats: {stats}")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from archetypeai._base import ApiBase
 
 _CTRL_MSG_HEADER = "cm"
 _DATA_MSG_HEADER = "dm"
+_HEADER_KEY = "h"
 _HEARTBEAT_DELAY_SEC = 0.1
 
 
@@ -29,6 +30,10 @@ class SensorsApi(ApiBase):
         self.data_queue = Queue()
         self._run_worker_loop = False
         self.thread = None
+        self.max_outgoing_message_queue_size = 0
+        self.outgoing_message_queue_latency = 0.0
+        self.outgoing_message_latency_total = 0.0
+        self.outgoing_message_count = 0
     
     def register(self, sensor_name: str, sensor_metadata: dict = {}, topic_ids: list[str] = []) -> bool:
         """Registers a sensor with the Archetype AI platform."""
@@ -56,7 +61,7 @@ class SensorsApi(ApiBase):
         assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
         timestamp = timestamp if timestamp >= 0 else time.time()
         message = {"topic_id": topic_id, "data": data, "timestamp": timestamp}
-        self.outgoing_message_queue.put({"h": _DATA_MSG_HEADER, **message})
+        self.outgoing_message_queue.put({_HEADER_KEY: _DATA_MSG_HEADER, **message})
         return True
 
     def get_messages(self) -> Any:
@@ -65,10 +70,39 @@ class SensorsApi(ApiBase):
             topic_id, data = self.incoming_message_queue.get()
             yield topic_id, data
         return '', {}
+    
+    def get_incoming_message_queue_size(self) -> int:
+        return self.incoming_message_queue.qsize()
+    
+    def get_outgoing_message_queue_size(self) -> int:
+        return self.outgoing_message_queue.qsize()
+    
+    def get_max_outgoing_message_queue_size(self) -> int:
+        return self.max_outgoing_message_queue_size
+    
+    def get_outgoing_message_queue_latency(self) -> float:
+        """Returns the latency of the latest outgoing message queue in seconds."""
+        return self.outgoing_message_queue_latency
+    
+    def get_outgoing_message_latency(self) -> float:
+        """Returns the average latency of outgoing data packets in seconds."""
+        if self.outgoing_message_count == 0:
+            return 0.0
+        message_latency = self.outgoing_message_latency_total / self.outgoing_message_count
+        return message_latency
+    
+    def get_stats(self) -> dict:
+        """Returns the stats of a sensor stream."""
+        stats = {}
+        stats["num_data_packets_sent"] = self.outgoing_message_count
+        stats["max_outgoing_message_queue_size"] = self.get_max_outgoing_message_queue_size()
+        stats["outgoing_message_queue_latency"] = self.get_outgoing_message_queue_latency()
+        stats["outgoing_message_latency"] = self.get_outgoing_message_latency()
+        return stats
 
     def _worker(self) -> None:
         self._run_worker_loop = True
-        heatbeat_message = {"h": _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
+        heatbeat_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
         while self._run_worker_loop:
             time_now = time.time()
             message_sent = False
@@ -80,11 +114,13 @@ class SensorsApi(ApiBase):
                 else:
                     time.sleep(0.1)
             else:
-                # logging.info(f"Queue size: {self.outgoing_message_queue.qsize()}")
+                self.max_outgoing_message_queue_size = max(self.outgoing_message_queue.qsize(), self.max_outgoing_message_queue_size)
                 message = self.outgoing_message_queue.get()
-                if message["h"] == _CTRL_MSG_HEADER:
+                queue_delay_time = time_now - message["timestamp"]
+                self.outgoing_message_queue_latency = queue_delay_time
+                if message[_HEADER_KEY] == _CTRL_MSG_HEADER:
                     message_sent = self._send_control_message(message)
-                if message["h"] == _DATA_MSG_HEADER:
+                if message[_HEADER_KEY] == _DATA_MSG_HEADER:
                     message_sent = self._send_data_message(message)
                 assert message_sent
             if message_sent:
@@ -98,12 +134,12 @@ class SensorsApi(ApiBase):
         if self.post_connect_timeout_sec > 0:
             time.sleep(self.post_connect_timeout_sec)
         # Send and receive a control message to validate the connection.
-        message = {"h": _CTRL_MSG_HEADER, "topic_id": "ctl_msg/handshake", "data": {}, "timestamp": time.time()}
+        message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/handshake", "data": {}, "timestamp": time.time()}
         return self._send_control_message(message)
 
     def _send_control_message(self, message: dict) -> bool:
         assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
-        assert message["h"] == _CTRL_MSG_HEADER
+        assert message[_HEADER_KEY] == _CTRL_MSG_HEADER
         assert self._send_data(message) > 0
         response_bytes = self.streamer_socket.recv()
         # logging.info(f"control msg response: {response_bytes}")
@@ -117,11 +153,15 @@ class SensorsApi(ApiBase):
 
     def _send_data_message(self, message: dict) -> bool:
         assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
-        assert message["h"] == _DATA_MSG_HEADER
+        assert message[_HEADER_KEY] == _DATA_MSG_HEADER
+        start_time = time.time()
         num_bytes_sent = self._send_data(message)
         assert num_bytes_sent > 0, f"Failed to send message!"
         logging.debug(f"Sent topic_id: {message['topic_id']} payload size: {num_bytes_sent} bytes")
         response = self.streamer_socket.recv()
+        end_time = time.time()
+        self.outgoing_message_latency_total += end_time - start_time
+        self.outgoing_message_count += 1
         if response == "ack":
             return True
         logging.warning(f"Failed to receive ack! Got: {response}")
