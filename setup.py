@@ -16,6 +16,7 @@ setup(
         "requests>=2.31.0",
         "requests-toolbelt>=1.0.0",
         "websockets>=12.0",
+        "websocket-client>=1.8.0",
     ],
     include_package_data=True,
 )
