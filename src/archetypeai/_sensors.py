@@ -70,7 +70,13 @@ class SensorsApi(ApiBase):
         """Sends data to the Archetype AI platform under the given topic_id."""
         assert self.connected, "Client not connected. Make sure the stream is open!"
         timestamp = timestamp if timestamp >= 0 else time.time()
-        message = {"topic_id": topic_id, "data": data, "timestamp": timestamp, "message_id": self.message_id}
+        message = {
+            "topic_id": topic_id,
+            "data": data,
+            "timestamp": timestamp,
+            "message_id": self.message_id,
+            "stream_uid": self.stream_uid
+        }
         self.message_id += 1
         self.outgoing_message_queue.put({_HEADER_KEY: _DATA_MSG_HEADER, **message})
         return True
