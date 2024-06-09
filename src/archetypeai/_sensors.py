@@ -19,17 +19,20 @@ _HEARTBEAT_DELAY_SEC = 0.1
 class SensorsApi(ApiBase):
     """Main sensor client for streaming data to the Archetype AI platform."""
 
-    def __init__(self, api_key: str, api_endpoint: str) -> None:
+    def __init__(self, api_key: str, api_endpoint: str, num_sensor_threads: int = 1) -> None:
         super().__init__(api_key, api_endpoint)
         self.stream_uid = None
         self.streamer_endpoint = None
-        self.streamer_socket = None
+        self.num_workers = num_sensor_threads
+        self.connected = False
+        self.streamer_sockets = []
+        self.threads = []
         self.post_connect_timeout_sec = 1
         self.incoming_message_queue = Queue()
         self.outgoing_message_queue = Queue()
         self.data_queue = Queue()
+        self.message_id = 0
         self._run_worker_loop = False
-        self.thread = None
         self.max_outgoing_message_queue_size = 0
         self.outgoing_message_queue_latency = 0.0
         self.outgoing_message_latency_total = 0.0
@@ -42,11 +45,16 @@ class SensorsApi(ApiBase):
         response_data = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
         self.stream_uid = response_data["stream_uid"]
         self.streamer_endpoint = response_data["sensor_endpoint"]
-        logging.debug(f"Successfully registered sensor {sensor_name} stream_uid: {self.stream_uid}")
+        self.message_id = 0
+        logging.info(f"Successfully registered sensor {sensor_name} stream_uid: {self.stream_uid}")
         assert self._handshake()
-        self.thread = threading.Thread(target=self._worker, args=())
-        self.thread.start()
-        return True
+        self.threads = []
+        for worker_id, streamer_socket in enumerate(self.streamer_sockets):
+            thread = threading.Thread(target=self._worker, args=(worker_id, streamer_socket))
+            thread.start()
+            self.threads.append(thread)
+        self.connected = True
+        return self.connected
 
     def close(self, wait_on_pending_data: bool = True):
         """Closes the connection with the server."""
@@ -54,13 +62,16 @@ class SensorsApi(ApiBase):
             while wait_on_pending_data and not self.outgoing_message_queue.empty():
                 time.sleep(0.1)
             self._run_worker_loop = False
-            self.thread.join()
+            for thread in self.threads:
+                thread.join()
+        self.connected = False
 
     def send(self, topic_id: str, data: Any, timestamp: float = -1.0) -> bool:
         """Sends data to the Archetype AI platform under the given topic_id."""
-        assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
+        assert self.connected, "Client not connected. Make sure the stream is open!"
         timestamp = timestamp if timestamp >= 0 else time.time()
-        message = {"topic_id": topic_id, "data": data, "timestamp": timestamp}
+        message = {"topic_id": topic_id, "data": data, "timestamp": timestamp, "message_id": self.message_id}
+        self.message_id += 1
         self.outgoing_message_queue.put({_HEADER_KEY: _DATA_MSG_HEADER, **message})
         return True
 
@@ -100,7 +111,8 @@ class SensorsApi(ApiBase):
         stats["outgoing_message_latency"] = self.get_outgoing_message_latency()
         return stats
 
-    def _worker(self) -> None:
+    def _worker(self, worker_id: str, streamer_socket) -> None:
+        logging.debug(f"Starting worker {worker_id}")
         self._run_worker_loop = True
         heatbeat_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
         while self._run_worker_loop:
@@ -109,7 +121,7 @@ class SensorsApi(ApiBase):
             if self.outgoing_message_queue.empty():
                 if time_now - heatbeat_message["timestamp"] >= _HEARTBEAT_DELAY_SEC:
                     heatbeat_message["timestamp"] = time_now
-                    message_sent = self._send_control_message(heatbeat_message)
+                    message_sent = self._send_control_message(heatbeat_message, streamer_socket)
                     assert message_sent
                 else:
                     time.sleep(0.1)
@@ -119,9 +131,9 @@ class SensorsApi(ApiBase):
                 queue_delay_time = time_now - message["timestamp"]
                 self.outgoing_message_queue_latency = queue_delay_time
                 if message[_HEADER_KEY] == _CTRL_MSG_HEADER:
-                    message_sent = self._send_control_message(message)
+                    message_sent = self._send_control_message(message, streamer_socket)
                 if message[_HEADER_KEY] == _DATA_MSG_HEADER:
-                    message_sent = self._send_data_message(message)
+                    message_sent = self._send_data_message(message, streamer_socket)
                 assert message_sent
             if message_sent:
                 # Any message acts as a general heartbeat.
@@ -130,36 +142,40 @@ class SensorsApi(ApiBase):
     def _handshake(self) -> bool:
         api_endpoint = os.path.join(self.streamer_endpoint, "sensors", self.stream_uid)
         logging.debug(f"Connecting to {api_endpoint}")
-        self.streamer_socket = create_connection(api_endpoint)
+        for worker_id in range(self.num_workers):
+            self.streamer_sockets.append(create_connection(api_endpoint))
         if self.post_connect_timeout_sec > 0:
             time.sleep(self.post_connect_timeout_sec)
         # Send and receive a control message to validate the connection.
         message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/handshake", "data": {}, "timestamp": time.time()}
-        return self._send_control_message(message)
+        success = True
+        for worker_id, streamer_socket in enumerate(self.streamer_sockets):
+            if not self._send_control_message(message, streamer_socket):
+                raise ValueError(f"Failed to handshake for socket {worker_id}")
+        return True
 
-    def _send_control_message(self, message: dict) -> bool:
-        assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
+    def _send_control_message(self, message: dict, streamer_socket) -> bool:
         assert message[_HEADER_KEY] == _CTRL_MSG_HEADER
-        assert self._send_data(message) > 0
-        response_bytes = self.streamer_socket.recv()
-        # logging.info(f"control msg response: {response_bytes}")
+        assert self._send_data(message, streamer_socket) > 0
+        response_bytes = streamer_socket.recv()
         response = json.loads(response_bytes)
         if "topic_id" in response:
             if response["topic_id"].startswith("ctl_msg/"):
-                logging.info(f"Got control message: {response['topic_id']}")
+                logging.debug(f"Got control message: {response['topic_id']}")
             else:
                 self.incoming_message_queue.put((response["topic_id"], response["data"]))
         return True
 
-    def _send_data_message(self, message: dict) -> bool:
-        assert self.streamer_socket is not None, "Client not connected. Make sure the stream is open!"
+    def _send_data_message(self, message: dict, streamer_socket) -> bool:
         assert message[_HEADER_KEY] == _DATA_MSG_HEADER
         start_time = time.time()
-        num_bytes_sent = self._send_data(message)
+        num_bytes_sent = self._send_data(message, streamer_socket)
         assert num_bytes_sent > 0, f"Failed to send message!"
-        logging.debug(f"Sent topic_id: {message['topic_id']} payload size: {num_bytes_sent} bytes")
-        response = self.streamer_socket.recv()
+        response = streamer_socket.recv()
         end_time = time.time()
+        latency = end_time - start_time
+        topic_id = message["topic_id"]
+        logging.debug(f"Sent topic_id: {topic_id} payload size: {num_bytes_sent} bytes latency: {latency}")
         self.outgoing_message_latency_total += end_time - start_time
         self.outgoing_message_count += 1
         if response == "ack":
@@ -167,9 +183,9 @@ class SensorsApi(ApiBase):
         logging.warning(f"Failed to receive ack! Got: {response}")
         return False
 
-    def _send_data(self, message: dict) -> int:
+    def _send_data(self, message: dict, streamer_socket) -> int:
         message_bytes = self._encode_data_to_send(message)
-        self.streamer_socket.send_binary(message_bytes)
+        streamer_socket.send_binary(message_bytes)
         num_bytes_sent = len(message_bytes)
         return num_bytes_sent
     

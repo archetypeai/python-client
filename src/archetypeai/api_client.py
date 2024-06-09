@@ -21,9 +21,9 @@ class ArchetypeAI(ApiBase):
     data_processing: DataProcessingApi
     sensors: SensorsApi
 
-    def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT) -> None:
+    def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT, **kwargs) -> None:
         super().__init__(api_key, api_endpoint)
         self.files = FilesApi(api_key, api_endpoint)
         self.capabilities = CapabilitiesApi(api_key, api_endpoint)
         self.data_processing = DataProcessingApi(api_key, api_endpoint)
-        self.sensors = SensorsApi(api_key, api_endpoint)
+        self.sensors = SensorsApi(api_key, api_endpoint, **kwargs)
