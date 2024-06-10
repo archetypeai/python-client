@@ -62,6 +62,7 @@ class ApiBase:
             else:
                 subpath = Path(subpath) / Path(arg)
         api_endpoint = "https://" + str(Path(base_endpoint.replace("https://", "")) / Path(subpath))
+        api_endpoint = api_endpoint.replace("\\", "/")  # Needed for Windows style joins.
         logging.info(f"api_endpoint: {api_endpoint}")
         return api_endpoint
 
