@@ -1,6 +1,5 @@
 import logging
 import json
-import os
 import time
 from queue import Queue
 from typing import Any
@@ -40,7 +39,7 @@ class SensorsApi(ApiBase):
     
     def register(self, sensor_name: str, sensor_metadata: dict = {}, topic_ids: list[str] = []) -> bool:
         """Registers a sensor with the Archetype AI platform."""
-        api_endpoint = os.path.join(self.api_endpoint, "sensors")
+        api_endpoint = self._get_endpoint(self.api_endpoint, "sensors")
         data_payload = {"sensor_name": sensor_name, "sensor_metadata": sensor_metadata, "topic_ids": topic_ids}
         response_data = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
         self.stream_uid = response_data["stream_uid"]
@@ -146,7 +145,7 @@ class SensorsApi(ApiBase):
                 heatbeat_message["timestamp"] = time_now
 
     def _handshake(self) -> bool:
-        api_endpoint = os.path.join(self.streamer_endpoint, "sensors", self.stream_uid)
+        api_endpoint = self._get_endpoint(self.streamer_endpoint, "sensors", self.stream_uid)
         logging.debug(f"Connecting to {api_endpoint}")
         for worker_id in range(self.num_workers):
             self.streamer_sockets.append(create_connection(api_endpoint))

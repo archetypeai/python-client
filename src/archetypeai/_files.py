@@ -1,7 +1,6 @@
-from typing import Dict, List, Tuple
-import os
+from typing import Dict
 
-import requests
+import os
 import json
 
 from requests_toolbelt import MultipartEncoder
@@ -14,7 +13,7 @@ class FilesApiBase(ApiBase):
 
     def get_info(self) -> dict:
         """Gets the file info for all the files your org has uploaded to the Archetype AI platform."""
-        api_endpoint = os.path.join(self.api_endpoint, "files/info")
+        api_endpoint = self._get_endpoint(self.api_endpoint, "files/info")
         return self.requests_get(api_endpoint)
 
     def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1) -> dict:
@@ -23,7 +22,7 @@ class FilesApiBase(ApiBase):
         Use the shard_index and max_items_per_shard to retrieve information about a subset of files.
         
         """
-        api_endpoint = os.path.join(self.api_endpoint, "files/metadata")
+        api_endpoint = self._get_endpoint(self.api_endpoint, "files/metadata")
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard}
         return self.requests_get(api_endpoint, params=params)
 
@@ -33,7 +32,7 @@ class LocalFilesApi(FilesApiBase):
 
     def upload(self, filename: str) -> dict:
         """Uploads a local file to the Archetype AI platform."""
-        api_endpoint = os.path.join(self.api_endpoint, "files")
+        api_endpoint = self._get_endpoint(self.api_endpoint, "files")
         with open(filename, "rb") as file_handle:
             encoder = MultipartEncoder(
                 {"file": (os.path.basename(filename), file_handle.read(), self.get_file_type(filename))})
@@ -48,7 +47,7 @@ class S3FilesApi(FilesApiBase):
 
     def upload(self, filenames: list[str], credentials: Dict[str, str] | None = None, batch_size: int = 64) -> dict:
         """Uploads a list of s3 files directly to the Archetype AI platform."""
-        api_endpoint = os.path.join(self.api_endpoint, "files/s3")
+        api_endpoint = self._get_endpoint(self.api_endpoint, "files/s3")
         num_files = len(filenames)
         response_data = []
         for batch_start in range(0, num_files, batch_size):

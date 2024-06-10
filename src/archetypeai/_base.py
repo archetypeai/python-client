@@ -1,7 +1,6 @@
 from typing import Dict, List, Tuple
 
 import logging
-import json
 from pathlib import Path
 import sys
 
@@ -54,6 +53,17 @@ class ApiBase:
             if num_attempts >= self.num_retries:
                 error_msg = f"Request failed after {num_attempts} attempts with error: {response_code} {response_data}"
                 raise ValueError(error_msg)
+    
+    def _get_endpoint(self, base_endpoint: str, *args) -> str:
+        subpath = None
+        for arg in args:
+            if subpath is None:
+                subpath = arg
+            else:
+                subpath = Path(subpath) / Path(arg)
+        api_endpoint = "https://" + str(Path(base_endpoint.replace("https://", "")) / Path(subpath))
+        logging.info(f"api_endpoint: {api_endpoint}")
+        return api_endpoint
 
     def get_file_type(self, filename: str) -> str:
         """Returns the file type of the input filename."""
