@@ -1,6 +1,6 @@
 # An example that demonstrates how to use the Archetype AI sensor messaging API.
 # usage:
-#   python examples.sensor_pubsub --api_key=<YOUR_API_KEY> --sensor_name=example_counter
+#   python -m examples.sensor_pubsub --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
 import logging
 import sys

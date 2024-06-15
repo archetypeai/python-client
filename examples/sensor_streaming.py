@@ -1,6 +1,6 @@
 # An example that demonstrates how to use the Archetype AI sensor streaming API.
 # usage:
-#   python examples.sensor_streaming --api_key=<YOUR_API_KEY> --sensor_name=example_counter
+#   python -m examples.sensor_streaming --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
 import logging
 import time
@@ -10,7 +10,7 @@ from archetypeai.api_client import ArchetypeAI
 
 def main(args):
     # Create a new client using you unique API key.
-    client = ArchetypeAI(args.api_key)
+    client = ArchetypeAI(args.api_key, num_sensor_threads=2)
 
     # Register the sensor with the Archetype AI cloud. Registering your sensor will create
     # a unique sensor ID for this session and open a dedicated endpoint to stream sensor data.
