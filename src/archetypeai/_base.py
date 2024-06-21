@@ -64,7 +64,6 @@ class ApiBase:
         protocol = "https://" if "https://" in base_endpoint else "wss://" 
         api_endpoint = protocol + str(Path(base_endpoint.replace(protocol, "")) / Path(subpath))
         api_endpoint = api_endpoint.replace("\\", "/")  # Needed for Windows style joins.
-        logging.info(f"api_endpoint: {api_endpoint}")
         return api_endpoint
 
     def get_file_type(self, filename: str) -> str:
