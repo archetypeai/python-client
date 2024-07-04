@@ -48,7 +48,7 @@ class ApiBase:
             response_code, response_data = request_func(**request_args)
             if response_code in self.valid_response_codes:
                 return response_data
-            logging.info(f"Failed to get valid response, got {response_code} {response_data} retrying...")
+            logging.info(f"Failed to get valid response with args {**request_args}, got {response_code} {response_data} retrying...")
             num_attempts += 1
             if num_attempts >= self.num_retries:
                 error_msg = f"Request failed after {num_attempts} attempts with error: {response_code} {response_data}"
