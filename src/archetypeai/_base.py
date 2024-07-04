@@ -7,7 +7,7 @@ import sys
 import requests
 from requests_toolbelt import MultipartEncoder
 
-from archetypeai.common import DEFAULT_ENDPOINT, safely_extract_response_data
+from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
 
 
 class ApiBase:
