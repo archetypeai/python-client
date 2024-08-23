@@ -30,8 +30,14 @@ class FilesApiBase(ApiBase):
 class LocalFilesApi(FilesApiBase):
     """API for working with local files."""
 
-    def upload(self, filename: str) -> dict:
+    def upload(self, filename: str, base64_data: str | None = None) -> dict:
         """Uploads a local file to the Archetype AI platform."""
+        if base64_data is None:
+            return self._upload_file(filename)
+        else:
+            return self._upload_base64_data(filename, base64_data)
+        
+    def _upload_file(self, filename: str) -> dict:
         api_endpoint = self._get_endpoint(self.api_endpoint, "files")
         with open(filename, "rb") as file_handle:
             encoder = MultipartEncoder(
@@ -40,6 +46,15 @@ class LocalFilesApi(FilesApiBase):
                 api_endpoint, data_payload=encoder, additional_headers={"Content-Type": encoder.content_type}
             )
             return response_data
+    
+    def _upload_base64_data(self, filename: str, base64_data: str) -> dict:
+        api_endpoint = self._get_endpoint(self.api_endpoint, "files/base64")
+        encoder = MultipartEncoder(
+            {"file": (os.path.basename(filename), base64_data, self.get_file_type(filename))})
+        response_data = self.requests_post(
+            api_endpoint, data_payload=encoder, additional_headers={"Content-Type": encoder.content_type}
+        )
+        return response_data
 
 
 class S3FilesApi(FilesApiBase):
