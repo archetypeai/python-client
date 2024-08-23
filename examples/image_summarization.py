@@ -3,9 +3,16 @@
 #   curl https://live.staticflickr.com/8358/29211988243_82023c5524_b.jpg > test_image.jpg
 #   python -m examples.image_summarization --api_key=<YOUR_API_KEY> --filename=test_image.jpg
 import argparse
+import base64
 import logging
 
 from archetypeai.api_client import ArchetypeAI
+
+
+def base64_encode(filename: str) -> str:
+    with open(args.filename, "rb") as img_handle:
+        encoded_img = base64.b64encode(img_handle.read()).decode("utf-8")
+    return encoded_img
 
 
 def main(args):
@@ -15,7 +22,8 @@ def main(args):
     # Upload a local file to the Archetype AI platform. Any data uploaded
     # will only be visible and accessible by other members of your org.
     logging.info(f"Uploading {args.filename}")
-    response_data = client.files.local.upload(args.filename)
+    encoded_img = base64_encode(args.filename) if args.use_base64 else None
+    response_data = client.files.local.upload(args.filename, encoded_img)
     logging.info(f"api response: {response_data}")
 
     # Use the file ID returned from the upload stage to run the image summarization API.
@@ -35,5 +43,6 @@ if __name__ == "__main__":
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--filename", required=True, type=str)
     parser.add_argument("--query", default="Describe the image", type=str)
+    parser.add_argument("--use_base64", default=0, type=int, help="If 1, encodes the image as a base64 string.")
     args = parser.parse_args()
     main(args)
