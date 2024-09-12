@@ -43,4 +43,4 @@ python -m examples.sensor_pubsub --api_key=<YOU_API_KEY> --sensor_name="example_
 
 ## Requirements
 * An Archetype AI developer key (request one at https://www.archetypeai.io)
-* Python 3.08 or higher.
+* Python 3.8 or higher.

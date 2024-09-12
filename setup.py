@@ -8,7 +8,7 @@ setup(
     description="The official python client for the Archetype AI API.",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    python_requires=">=3.08",
+    python_requires=">=3.8",
     install_requires=[
         "wheel",
         "argparse>=1.4.0",
