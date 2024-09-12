@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import os
 import json
@@ -30,7 +30,7 @@ class FilesApiBase(ApiBase):
 class LocalFilesApi(FilesApiBase):
     """API for working with local files."""
 
-    def upload(self, filename: str, base64_data: str | None = None) -> dict:
+    def upload(self, filename: str, base64_data: Union[str, None] = None) -> dict:
         """Uploads a local file to the Archetype AI platform."""
         if base64_data is None:
             return self._upload_file(filename)
@@ -60,7 +60,7 @@ class LocalFilesApi(FilesApiBase):
 class S3FilesApi(FilesApiBase):
     """API for working with Amazon s3 files."""
 
-    def upload(self, filenames: list[str], credentials: Dict[str, str] | None = None, batch_size: int = 64) -> dict:
+    def upload(self, filenames: list[str], credentials: Union[Dict[str, str], None] = None, batch_size: int = 64) -> dict:
         """Uploads a list of s3 files directly to the Archetype AI platform."""
         api_endpoint = self._get_endpoint(self.api_endpoint, "files/s3")
         num_files = len(filenames)
