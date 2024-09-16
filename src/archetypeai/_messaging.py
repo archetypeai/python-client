@@ -43,7 +43,7 @@ class MessagingApi(ApiBase):
         time_delta = current_time - self.last_get_time
         if self.rate_limiter_timeout_sec > 0.0 and time_delta <= self.rate_limiter_timeout_sec:
             sleep_time_sec = self.rate_limiter_timeout_sec - time_delta
-            logging.warning(f"Reache rate limiter, waiting {sleep_time_sec:.2f} sec")
+            logging.warning(f"Reached rate limiter, waiting {sleep_time_sec:.2f} sec")
             time.sleep(sleep_time_sec)
         self.last_get_time = current_time
         for subscriber_info in self.subscriber_info:
