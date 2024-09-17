@@ -16,4 +16,4 @@ class SensorsApi(SocketManager):
         data_payload = {"sensor_name": sensor_name, "sensor_metadata": sensor_metadata, "topic_ids": topic_ids}
         response_data = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
         logging.info(f"Successfully registered sensor {sensor_name} stream_uid: {response_data['stream_uid']}")
-        return self._start_stream(response_data["stream_uid"], response_data["sensor_endpoint"])
+        return self._start_stream(response_data["stream_uid"], response_data["sensor_endpoint"], "sensors")

@@ -18,16 +18,18 @@ def main(args):
 
     # Broadcast some messages on some specific topic_ids. Only subscribers acros your organization can
     # listen and access these messages.
-    client.messaging.broadcast(topic_id="hello", message="world")  # Messages can be strings.
-    client.messaging.broadcast(topic_id="hello", message={"foo": "bar"})  # Or small dictionaries.
-    client.messaging.broadcast(topic_id="news", message="news of the world")
-    client.messaging.broadcast(topic_id="major_tom", message="is there anyone there?")  # No one is subscribed to this.
+    client.messaging.broadcast(topic_id="hello", message={"message": "world"})
+    client.messaging.broadcast(topic_id="news", message={"foo": "bar"})
+    client.messaging.broadcast(topic_id="some_other_id", message={"foo": "baz"})
 
     # Check for new messages on the topics we subscribed above.
     messages = client.messaging.get_next_messages()
-    logging.info(f"Received {len(messages)}:")
-    for message in messages:
-        logging.info(message)
+    for topic_id, message in messages:
+        logging.info(f"topic_id: {topic_id} message: {message}")
+    
+    # Cleanly shut down the connection.
+    logging.info("Closing connection")
+    client.messaging.close()
 
 
 if __name__ == "__main__":

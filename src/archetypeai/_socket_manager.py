@@ -37,10 +37,11 @@ class SocketManager(ApiBase):
         self.outgoing_message_latency_total = 0.0
         self.outgoing_message_count = 0
     
-    def _start_stream(self, stream_uid: str, streamer_endpoint: str) -> bool:
+    def _start_stream(self, stream_uid: str, streamer_endpoint: str, streamer_channel: str) -> bool:
         """Starts a new stream with the Archetype AI platform."""
         self.stream_uid = stream_uid
         self.streamer_endpoint = streamer_endpoint
+        self.streamer_channel = streamer_channel
         self.message_id = 0
         
         assert self._handshake()
@@ -83,7 +84,6 @@ class SocketManager(ApiBase):
         while not self.incoming_message_queue.empty():
             topic_id, data = self.incoming_message_queue.get()
             yield topic_id, data
-        return '', {}
     
     def get_incoming_message_queue_size(self) -> int:
         return self.incoming_message_queue.qsize()
@@ -143,15 +143,14 @@ class SocketManager(ApiBase):
                 heatbeat_message["timestamp"] = time_now
 
     def _handshake(self) -> bool:
-        api_endpoint = self._get_endpoint(self.streamer_endpoint, "sensors", self.stream_uid)
-        logging.debug(f"Connecting to {api_endpoint}")
+        api_endpoint = self._get_endpoint(self.streamer_endpoint, self.streamer_channel, self.stream_uid)
+        logging.info(f"Connecting to {api_endpoint}")
         for worker_id in range(self.num_workers):
             self.streamer_sockets.append(create_connection(api_endpoint))
         if self.post_connect_timeout_sec > 0:
             time.sleep(self.post_connect_timeout_sec)
         # Send and receive a control message to validate the connection.
         message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/handshake", "data": {}, "timestamp": time.time()}
-        success = True
         for worker_id, streamer_socket in enumerate(self.streamer_sockets):
             if not self._send_control_message(message, streamer_socket):
                 raise ValueError(f"Failed to handshake for socket {worker_id}")
@@ -167,6 +166,10 @@ class SocketManager(ApiBase):
                 logging.debug(f"Got control message: {response['topic_id']}")
             else:
                 self.incoming_message_queue.put((response["topic_id"], response["data"]))
+        elif "messages" in response:
+            for message in response["messages"]:
+                logging.info(f"Got message: {message}")
+                self.incoming_message_queue.put((message["topic_id"], message["message"]))
         return True
 
     def _send_data_message(self, message: dict, streamer_socket) -> bool:
