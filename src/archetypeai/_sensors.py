@@ -1,11 +1,5 @@
 import logging
 import json
-import time
-from queue import Queue
-from typing import Any
-import threading
-
-from websocket import create_connection
 
 from archetypeai._socket_manager import SocketManager
 
