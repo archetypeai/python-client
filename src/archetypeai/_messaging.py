@@ -52,5 +52,5 @@ class MessagingApi(ApiBase):
         messages = []
         for subscriber in self.subscribers:
             for topic_id, message in subscriber.get_messages():
-                messages.append((topic_id, message))
+                messages.append({"topic_id": topic_id, "message": message})
         return messages

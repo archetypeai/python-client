@@ -24,8 +24,8 @@ def main(args):
 
     # Check for new messages on the topics we subscribed above.
     messages = client.messaging.get_next_messages()
-    for topic_id, message in messages:
-        logging.info(f"topic_id: {topic_id} message: {message}")
+    for message in messages:
+        logging.info(f"topic_id: {message['topic_id']} message: {message['message']}")
     
     # Cleanly shut down the connection.
     logging.info("Closing connection")
