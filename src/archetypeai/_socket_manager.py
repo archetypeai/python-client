@@ -44,26 +44,29 @@ class SocketManager(ApiBase):
         self.streamer_channel = streamer_channel
         self.message_id = 0
         
+        self._safely_stop_streams()
         assert self._handshake()
-        self.threads = {}
         for worker_id, streamer_socket in enumerate(self.streamer_sockets):
-            thread = threading.Thread(target=self._worker, args=(worker_id, streamer_socket))
-            thread.start()
-            self.threads[worker_id] = thread
+            self.threads[worker_id] = threading.Thread(target=self._worker, args=(worker_id, streamer_socket))
+            self.threads[worker_id].start()
 
         self.connected = True
         return self.connected
 
+    def _safely_stop_streams(self):
+        self._run_worker_loop = False
+        for worker_id in self.threads:
+            self.threads[worker_id].join()
+        self.threads = {}
+        self.streamer_sockets = []
+        self.connected = False
+
     def close(self, wait_on_pending_data: bool = True):
         """Closes the connection with the server."""
-        if self._run_worker_loop:
-            while wait_on_pending_data and not self.outgoing_message_queue.empty():
+        if wait_on_pending_data:
+            while not self.outgoing_message_queue.empty():
                 time.sleep(0.1)
-            self._run_worker_loop = False
-            for worker_id in self.threads:
-                self.threads[worker_id].join()
-        self.connected = False
-        self.threads = {}
+        self._safely_stop_streams()
 
     def send(self, topic_id: str, data: Any, timestamp: float = -1.0) -> bool:
         """Sends data to the Archetype AI platform under the given topic_id."""
@@ -122,41 +125,37 @@ class SocketManager(ApiBase):
             self._worker_loop(worker_id, streamer_socket)
         except:
             logging.exception(f"Main loop failed, closing socket!")
-        # If this worker has stopped then make sure all workers stop.
-        self._run_worker_loop = False
-        for thread_id in self.threads:
-            try:
-                if thread_id != worker_id:
-                    self.threads[thread_id].join()
-            except:
-                logging.exception(f"Failed to stop thread {thread_id} in worker_id: {worker_id}")
-        self.connected = False
+            # Remove this failed worker from the thread pool.
+            del self.threads[worker_id]
+            del streamer_socket
+            # If this worker has stopped then make sure all workers stop.
+            self._safely_stop_streams()
     
     def _worker_loop(self, worker_id: str, streamer_socket) -> None:
         heatbeat_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
         while self._run_worker_loop:
-            time_now = time.time()
-            message_sent = False
-            if self.outgoing_message_queue.empty():
-                if time_now - heatbeat_message["timestamp"] >= _HEARTBEAT_DELAY_SEC:
-                    heatbeat_message["timestamp"] = time_now
-                    message_sent = self._send_control_message(heatbeat_message, streamer_socket)
-                    assert message_sent
-                else:
-                    time.sleep(0.1)
-            else:
+            # Broadcast any outgoing messages.
+            while not self.outgoing_message_queue.empty():
+                time_now = time.time()
                 self.max_outgoing_message_queue_size = max(self.outgoing_message_queue.qsize(), self.max_outgoing_message_queue_size)
                 message = self.outgoing_message_queue.get()
                 queue_delay_time = time_now - message["timestamp"]
                 self.outgoing_message_queue_latency = queue_delay_time
                 if message[_HEADER_KEY] == _CTRL_MSG_HEADER:
                     message_sent = self._send_control_message(message, streamer_socket)
-                if message[_HEADER_KEY] == _DATA_MSG_HEADER:
+                elif message[_HEADER_KEY] == _DATA_MSG_HEADER:
                     message_sent = self._send_data_message(message, streamer_socket)
                 assert message_sent
-            if message_sent:
-                # Any message acts as a general heartbeat.
+                # Update the last heartbeat message.
                 heatbeat_message["timestamp"] = time_now
+
+            # Queue a heartbeat message if there's been no outgoing messages recently.
+            time_now = time.time()
+            if self._run_worker_loop and time_now - heatbeat_message["timestamp"] >= _HEARTBEAT_DELAY_SEC:
+                heatbeat_message["timestamp"] = time_now
+                self.outgoing_message_queue.put({_HEADER_KEY: _CTRL_MSG_HEADER, **heatbeat_message})
+                time.sleep(0.1)
+
 
     def _handshake(self) -> bool:
         api_endpoint = self._get_endpoint(self.streamer_endpoint, self.streamer_channel, self.stream_uid)
