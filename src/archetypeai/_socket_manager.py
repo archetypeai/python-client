@@ -25,7 +25,7 @@ class SocketManager(ApiBase):
         self.num_workers = num_worker_threads
         self.connected = False
         self.streamer_sockets = []
-        self.threads = []
+        self.threads = {}
         self.post_connect_timeout_sec = 1
         self.incoming_message_queue = Queue()
         self.outgoing_message_queue = Queue()
@@ -45,11 +45,11 @@ class SocketManager(ApiBase):
         self.message_id = 0
         
         assert self._handshake()
-        self.threads = []
+        self.threads = {}
         for worker_id, streamer_socket in enumerate(self.streamer_sockets):
             thread = threading.Thread(target=self._worker, args=(worker_id, streamer_socket))
             thread.start()
-            self.threads.append(thread)
+            self.threads[worker_id] = thread
 
         self.connected = True
         return self.connected
@@ -60,9 +60,10 @@ class SocketManager(ApiBase):
             while wait_on_pending_data and not self.outgoing_message_queue.empty():
                 time.sleep(0.1)
             self._run_worker_loop = False
-            for thread in self.threads:
-                thread.join()
+            for worker_id in self.threads:
+                self.threads[worker_id].join()
         self.connected = False
+        self.threads = {}
 
     def send(self, topic_id: str, data: Any, timestamp: float = -1.0) -> bool:
         """Sends data to the Archetype AI platform under the given topic_id."""
@@ -123,11 +124,12 @@ class SocketManager(ApiBase):
             logging.exception(f"Main loop failed, closing socket!")
         # If this worker has stopped then make sure all workers stop.
         self._run_worker_loop = False
-        for thread in self.threads:
+        for thread_id in self.threads:
             try:
-                thread.join()
+                if thread_id != worker_id:
+                    self.threads[thread_id].join()
             except:
-                logging.exception(f"Failed to stop thread for worker_id: {worker_id}")
+                logging.exception(f"Failed to stop thread {thread_id} in worker_id: {worker_id}")
         self.connected = False
     
     def _worker_loop(self, worker_id: str, streamer_socket) -> None:
