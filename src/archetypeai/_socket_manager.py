@@ -117,6 +117,16 @@ class SocketManager(ApiBase):
     def _worker(self, worker_id: str, streamer_socket) -> None:
         logging.debug(f"Starting worker {worker_id}")
         self._run_worker_loop = True
+        try:
+            self._worker_loop(worker_id)
+        except:
+            logging.exception(f"Main loop failed, closing socket!")
+            self._run_worker_loop = False
+            for thread in self.threads:
+                thread.join()
+        self.connected = False
+    
+    def _worker_loop(self, worker_id: str, streamer_socket) -> None:
         heatbeat_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
         while self._run_worker_loop:
             time_now = time.time()
