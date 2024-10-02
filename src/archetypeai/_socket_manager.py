@@ -118,7 +118,7 @@ class SocketManager(ApiBase):
         logging.debug(f"Starting worker {worker_id}")
         self._run_worker_loop = True
         try:
-            self._worker_loop(worker_id)
+            self._worker_loop(worker_id, streamer_socket)
         except:
             logging.exception(f"Main loop failed, closing socket!")
             self._run_worker_loop = False
