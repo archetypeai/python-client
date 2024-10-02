@@ -121,9 +121,13 @@ class SocketManager(ApiBase):
             self._worker_loop(worker_id, streamer_socket)
         except:
             logging.exception(f"Main loop failed, closing socket!")
-            self._run_worker_loop = False
-            for thread in self.threads:
+        # If this worker has stopped then make sure all workers stop.
+        self._run_worker_loop = False
+        for thread in self.threads:
+            try:
                 thread.join()
+            except:
+                logging.exception(f"Failed to stop thread for worker_id: {worker_id}")
         self.connected = False
     
     def _worker_loop(self, worker_id: str, streamer_socket) -> None:
