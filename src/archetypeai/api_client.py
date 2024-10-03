@@ -5,6 +5,7 @@ import os
 from typing import Dict, List, Tuple
 from pathlib import Path
 
+from archetypeai.__init__ import __version__
 from archetypeai._base import ApiBase
 from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
@@ -22,6 +23,11 @@ class ArchetypeAI(ApiBase):
     data_processing: DataProcessingApi
     messaging: MessagingApi
     sensors: SensorsApi
+
+    @staticmethod
+    def get_version() -> str:
+        """Returns the current version of the Archetype client."""
+        return __version__
 
     def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT, **kwargs) -> None:
         super().__init__(api_key, api_endpoint)
