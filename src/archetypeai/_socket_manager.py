@@ -85,6 +85,7 @@ class SocketManager(ApiBase):
 
     def get_messages(self) -> Any:
         """Gets any pending messages sent to the client."""
+        assert self.connected, "Client not connected. Make sure the stream is open!"
         while not self.incoming_message_queue.empty():
             topic_id, data = self.incoming_message_queue.get()
             yield topic_id, data
