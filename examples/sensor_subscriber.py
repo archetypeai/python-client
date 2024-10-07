@@ -1,6 +1,6 @@
 # An example that demonstrates how to use the Archetype AI sensors API to listen to sensor data.
 # usage:
-#   python -m examples.sensor_pubsub --api_key=<YOUR_API_KEY> --sensor_name=example_counter
+#   python -m examples.sensor_subscriber --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
 import logging
 import sys
