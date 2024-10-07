@@ -1,4 +1,4 @@
-# An example that demonstrates how to use the Archetype AI sensor messaging API.
+# An example that demonstrates how to use the Archetype AI sensors API to listen to sensor data.
 # usage:
 #   python -m examples.sensor_pubsub --api_key=<YOUR_API_KEY> --sensor_name=example_counter
 import argparse
@@ -14,27 +14,16 @@ def main(args):
     # Create a new client using you unique API key.
     client = ArchetypeAI(args.api_key)
 
-    # Register the sensor with the Archetype AI cloud. Registering your sensor will create
-    # a unique sensor ID for this session and open a dedicated endpoint to stream sensor data.
-    # Any data or events sent will only be accessible by members as the same org_id as your api_key.
-    client.sensors.register(args.sensor_name, topic_ids=[args.subscriber_topic_id])
+    # Subscribe to a sensor from the Archetype AI cloud. Clients can only subscribe to
+    # sensors within the same org_id as your api_key.
+    client.sensors.subscribe(args.sensor_name)
 
-    # Broadcast a message to all clients listening across your org listening on the topic_id.
-    logging.info(f"Sending message on topic_id={args.publisher_topic_id}")
-    client.sensors.send(topic_id=args.publisher_topic_id, data={"message": f"hi, this is {args.sensor_name}"})
-
-    # Listen for incoming messages.
-    message_counter = 0
-    while message_counter < args.num_messages_to_receive:
-        # Consume any messages that were sent to the client.
-        for topic_id, data in client.sensors.get_messages():
-            logging.info(f"Received: topic_id={topic_id} data={data}")
-            message_counter += 1
-        time.sleep(0.1)
-
-    # Broadcast a closing message to all clients listening across your org listening on the topic_id.
-    logging.info(f"Sending message on topic_id={args.publisher_topic_id}")
-    client.sensors.send(topic_id=args.publisher_topic_id, data={"message": "bye!"})
+    # Read incoming events from the sensor.
+    counter = 0
+    while counter < args.num_messages_to_receive:
+        for event in client.sensors.get_sensor_data():
+            logging.info(f"topic_id: {event['topic_id']} keys: {event['data'].keys()}")
+            counter += 1
 
     # Cleanly shut down the connection.
     client.sensors.close()
@@ -46,8 +35,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--sensor_name", required=True, type=str)
-    parser.add_argument("--publisher_topic_id", default="my_messages/", type=str)
-    parser.add_argument("--subscriber_topic_id", default="my_messages/", type=str)
-    parser.add_argument("--num_messages_to_receive", default=1, type=int)
+    parser.add_argument("--num_messages_to_receive", default=10, type=int)
     args = parser.parse_args()
     main(args)
