@@ -27,9 +27,9 @@ class SocketManager(ApiBase):
         self.streamer_sockets = []
         self.threads = {}
         self.post_connect_timeout_sec = 1
+        self.incoming_data_queue = Queue()
         self.incoming_message_queue = Queue()
         self.outgoing_message_queue = Queue()
-        self.data_queue = Queue()
         self.message_id = 0
         self._run_worker_loop = False
         self.max_outgoing_message_queue_size = 0
@@ -89,6 +89,16 @@ class SocketManager(ApiBase):
         while not self.incoming_message_queue.empty():
             topic_id, data = self.incoming_message_queue.get()
             yield topic_id, data
+
+    def get_data(self) -> Any:
+        """Gets any pending data sent to the client."""
+        assert self.connected, "Client not connected. Make sure the stream is open!"
+        while not self.incoming_data_queue.empty():
+            sensor_name, topic_id, data = self.incoming_data_queue.get()
+            yield sensor_name, topic_id, data
+
+    def get_incoming_data_queue_size(self) -> int:
+        return self.incoming_data_queue.qsize()
     
     def get_incoming_message_queue_size(self) -> int:
         return self.incoming_message_queue.qsize()
@@ -184,8 +194,10 @@ class SocketManager(ApiBase):
                 self.incoming_message_queue.put((response["topic_id"], response["data"]))
         elif "messages" in response:
             for message in response["messages"]:
-                logging.info(f"Got message: {message}")
                 self.incoming_message_queue.put((message["topic_id"], message["message"]))
+        elif "sensor_data" in response:
+            for event in response["sensor_data"]:
+                self.incoming_data_queue.put((event["sensor_name"], event["topic_id"], event["data"]))
         return True
 
     def _send_data_message(self, message: dict, streamer_socket) -> bool:
