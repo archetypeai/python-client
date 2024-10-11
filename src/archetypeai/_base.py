@@ -18,12 +18,15 @@ class ApiBase:
                  api_endpoint: str = DEFAULT_ENDPOINT,
                  num_retries: int = 3,
                  log_level: int = logging.INFO,
-                 log_format: str = "[%(asctime)s] %(message)s") -> None:
+                 log_format: str = "[%(asctime)s] %(message)s",
+                 use_ssl: bool = True
+                 ) -> None:
         self.api_key = api_key
         self.api_endpoint = api_endpoint
         self.auth_headers = {"Authorization": f"Bearer {self.api_key}"}
         self.num_retries = num_retries
         self.valid_response_codes = (200, 201)
+        self.use_ssl = use_ssl
         logging.basicConfig(level=log_level, format=log_format, datefmt="%H:%M:%S", stream=sys.stdout)
     
     def requests_get(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
@@ -61,7 +64,9 @@ class ApiBase:
                 subpath = arg
             else:
                 subpath = Path(subpath) / Path(arg)
-        protocol = "https://" if "https://" in base_endpoint else "wss://" 
+        http_protocol = "https://" if self.use_ssl else "http://"
+        ws_protocol = "wss://" if self.use_ssl else "ws://"
+        protocol = http_protocol if http_protocol in base_endpoint else ws_protocol
         api_endpoint = protocol + str(Path(base_endpoint.replace(protocol, "")) / Path(subpath))
         api_endpoint = api_endpoint.replace("\\", "/")  # Needed for Windows style joins.
         return api_endpoint
