@@ -12,17 +12,18 @@ from archetypeai._base import ApiBase
 _CTRL_MSG_HEADER = "cm"
 _DATA_MSG_HEADER = "dm"
 _HEADER_KEY = "h"
-_HEARTBEAT_DELAY_SEC = 0.1
+_HEARTBEAT_DELAY_SEC = 5.0
 
 
 class SocketManager(ApiBase):
     """Helper class for communicating with the Archetype AI platform via websockets."""
 
-    def __init__(self, api_key: str, api_endpoint: str, num_worker_threads: int = 1) -> None:
+    def __init__(self, api_key: str, api_endpoint: str, num_worker_threads: int = 1, fetch_time_sec=2.0) -> None:
         super().__init__(api_key, api_endpoint)
         self.stream_uid = None
         self.streamer_endpoint = None
         self.num_workers = num_worker_threads
+        self.fetch_time_sec = fetch_time_sec
         self.connected = False
         self.streamer_sockets = []
         self.threads = {}
@@ -30,12 +31,17 @@ class SocketManager(ApiBase):
         self.incoming_data_queue = Queue()
         self.incoming_message_queue = Queue()
         self.outgoing_message_queue = Queue()
+        self.stats_queue = Queue()
         self.message_id = 0
         self._run_worker_loop = False
         self.max_outgoing_message_queue_size = 0
-        self.outgoing_message_queue_latency = 0.0
         self.outgoing_message_latency_total = 0.0
         self.outgoing_message_count = 0
+        self.stats = {}
+        self.stats["num_data_packets_sent"] = 0
+        self.stats["max_outgoing_message_queue_size"] = 0
+        self.stats["outgoing_message_queue_latency"] = 0
+        self.stats["outgoing_message_latency"] = 0
     
     def _start_stream(self, stream_uid: str, streamer_endpoint: str, streamer_channel: str) -> bool:
         """Starts a new stream with the Archetype AI platform."""
@@ -65,6 +71,7 @@ class SocketManager(ApiBase):
         """Closes the connection with the server."""
         if wait_on_pending_data:
             while not self.outgoing_message_queue.empty():
+                logging.info(f"outgoing data queue size: {self.outgoing_message_queue.qsize()}")
                 time.sleep(0.1)
         self._safely_stop_streams()
 
@@ -81,6 +88,7 @@ class SocketManager(ApiBase):
         }
         self.message_id += 1
         self.outgoing_message_queue.put({_HEADER_KEY: _DATA_MSG_HEADER, **message})
+        self._refresh_stats()
         return True
 
     def get_messages(self) -> Any:
@@ -107,27 +115,31 @@ class SocketManager(ApiBase):
         return self.outgoing_message_queue.qsize()
     
     def get_max_outgoing_message_queue_size(self) -> int:
-        return self.max_outgoing_message_queue_size
+        return self.stats["max_outgoing_message_queue_size"]
     
     def get_outgoing_message_queue_latency(self) -> float:
         """Returns the latency of the latest outgoing message queue in seconds."""
-        return self.outgoing_message_queue_latency
+        self._refresh_stats()
+        return self.stats["outgoing_message_queue_latency"]
     
     def get_outgoing_message_latency(self) -> float:
         """Returns the average latency of outgoing data packets in seconds."""
-        if self.outgoing_message_count == 0:
-            return 0.0
-        message_latency = self.outgoing_message_latency_total / self.outgoing_message_count
-        return message_latency
+        self._refresh_stats()
+        return self.stats["outgoing_message_queue_latency"]
     
     def get_stats(self) -> dict:
         """Returns the stats of a sensor stream."""
-        stats = {}
-        stats["num_data_packets_sent"] = self.outgoing_message_count
-        stats["max_outgoing_message_queue_size"] = self.get_max_outgoing_message_queue_size()
-        stats["outgoing_message_queue_latency"] = self.get_outgoing_message_queue_latency()
-        stats["outgoing_message_latency"] = self.get_outgoing_message_latency()
-        return stats
+        self._refresh_stats()
+        return self.stats
+
+    def _refresh_stats(self):
+        while not self.stats_queue.empty():
+            stats_event = self.stats_queue.get()
+            if "outgoing_message_queue_latency" in stats_event:
+                self.stats["outgoing_message_queue_latency"] = stats_event["outgoing_message_queue_latency"]
+            elif "max_outgoing_message_queue_size" in stats_event:
+                self.stats["max_outgoing_message_queue_size"] = max(
+                    stats_event["max_outgoing_message_queue_size"], self.stats["max_outgoing_message_queue_size"])
 
     def _worker(self, worker_id: str, streamer_socket) -> None:
         logging.debug(f"Starting worker {worker_id}")
@@ -144,29 +156,34 @@ class SocketManager(ApiBase):
     
     def _worker_loop(self, worker_id: str, streamer_socket) -> None:
         heatbeat_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/heartbeat", "data": {}, "timestamp": 0}
+        fetch_message = {_HEADER_KEY: _CTRL_MSG_HEADER, "topic_id": "ctl_msg/fetch", "data": {}, "timestamp": 0}
+        max_outgoing_message_queue_size = 0
         while self._run_worker_loop:
             # Broadcast any outgoing messages.
             while not self.outgoing_message_queue.empty():
                 time_now = time.time()
-                self.max_outgoing_message_queue_size = max(self.outgoing_message_queue.qsize(), self.max_outgoing_message_queue_size)
+                max_outgoing_message_queue_size = max(self.outgoing_message_queue.qsize(), max_outgoing_message_queue_size)
                 message = self.outgoing_message_queue.get()
                 queue_delay_time = time_now - message["timestamp"]
-                self.outgoing_message_queue_latency = queue_delay_time
+                self.stats_queue.put({
+                    "outgoing_message_queue_latency": queue_delay_time,
+                    "max_outgoing_message_queue_size": max_outgoing_message_queue_size
+                })
+                
                 if message[_HEADER_KEY] == _CTRL_MSG_HEADER:
                     message_sent = self._send_control_message(message, streamer_socket)
                 elif message[_HEADER_KEY] == _DATA_MSG_HEADER:
                     message_sent = self._send_data_message(message, streamer_socket)
                 assert message_sent
-                # Update the last heartbeat message.
-                heatbeat_message["timestamp"] = time_now
 
-            # Queue a heartbeat message if there's been no outgoing messages recently.
+            # Queue a heartbeat or fetch message if needed.
             time_now = time.time()
             if self._run_worker_loop and time_now - heatbeat_message["timestamp"] >= _HEARTBEAT_DELAY_SEC:
                 heatbeat_message["timestamp"] = time_now
                 self.outgoing_message_queue.put({_HEADER_KEY: _CTRL_MSG_HEADER, **heatbeat_message})
-                time.sleep(0.1)
-
+            if self._run_worker_loop and time_now - fetch_message["timestamp"] >= self.fetch_time_sec:
+                fetch_message["timestamp"] = time_now
+                self.outgoing_message_queue.put({_HEADER_KEY: _CTRL_MSG_HEADER, **fetch_message})
 
     def _handshake(self) -> bool:
         api_endpoint = self._get_endpoint(self.streamer_endpoint, self.streamer_channel, self.stream_uid)
@@ -184,8 +201,12 @@ class SocketManager(ApiBase):
 
     def _send_control_message(self, message: dict, streamer_socket) -> bool:
         assert message[_HEADER_KEY] == _CTRL_MSG_HEADER
+        # Send the control message.
         assert self._send_data(message, streamer_socket) > 0
+        # Get the control response.
         response_bytes = streamer_socket.recv()
+        if not response_bytes:
+            return False
         response = json.loads(response_bytes)
         if "topic_id" in response:
             if response["topic_id"].startswith("ctl_msg/"):
@@ -201,27 +222,21 @@ class SocketManager(ApiBase):
         return True
 
     def _send_data_message(self, message: dict, streamer_socket) -> bool:
+        """Sends a data message to the server, does not wait for a response."""
         assert message[_HEADER_KEY] == _DATA_MSG_HEADER
         start_time = time.time()
         num_bytes_sent = self._send_data(message, streamer_socket)
         assert num_bytes_sent > 0, f"Failed to send message!"
-        response = streamer_socket.recv()
         end_time = time.time()
         latency = end_time - start_time
         topic_id = message["topic_id"]
         logging.debug(f"Sent topic_id: {topic_id} payload size: {num_bytes_sent} bytes latency: {latency}")
-        self.outgoing_message_latency_total += end_time - start_time
+        self.outgoing_message_latency_total += latency
         self.outgoing_message_count += 1
-        if response == "ack":
-            return True
-        logging.warning(f"Failed to receive ack! Got: {response}")
-        return False
+        return True
 
     def _send_data(self, message: dict, streamer_socket) -> int:
-        message_bytes = self._encode_data_to_send(message)
+        message_bytes = json.dumps(message).encode()
         streamer_socket.send_binary(message_bytes)
         num_bytes_sent = len(message_bytes)
         return num_bytes_sent
-    
-    def _encode_data_to_send(self, data: dict[str, Any]) -> bytes:
-        return json.dumps(data).encode()

@@ -31,14 +31,16 @@ class SensorsApi(ApiBase):
         data_payload = {"sensor_name": sensor_name, "topic_ids": topic_ids}
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
         logging.info(f"Successfully subscribed to sensor {sensor_name} subscriber_uid: {response['subscriber_uid']}")
-        subscriber = SocketManager(self.api_key, self.api_endpoint, num_worker_threads=self.num_sensor_threads)
+        subscriber = SocketManager(
+            self.api_key, self.api_endpoint, num_worker_threads=self.num_sensor_threads, fetch_time_sec=0.1)
         subscriber._start_stream(response["subscriber_uid"], response["subscriber_endpoint"], "sensors/subscriber")
         self.subscribers.append(subscriber)
         return True
 
     def send(self, topic_id: str, data: Any, timestamp: float = -1.0) -> bool:
         assert self.streamer is not None, "Sensor not registered. Call register first."
-        return self.streamer.send(topic_id, data, timestamp)
+        success = self.streamer.send(topic_id, data, timestamp)
+        return success
 
     def close(self) -> bool:
         if self.streamer:
@@ -49,7 +51,7 @@ class SensorsApi(ApiBase):
 
     def get_stats(self):
         assert self.streamer is not None, "Sensor not registered. Call register first."
-        return self.streamer.streamer.get_stats()
+        return self.streamer.get_stats()
 
     def get_incoming_data_queue_size(self) -> int:
         assert self.streamer is not None, "Sensor not registered. Call register first."

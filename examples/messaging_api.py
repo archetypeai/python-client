@@ -3,6 +3,7 @@
 #   python -m examples.messaging_api --api_key=<YOUR_API_KEY>
 import argparse
 import logging
+import time
 
 from archetypeai.api_client import ArchetypeAI
 
@@ -22,10 +23,13 @@ def main(args):
     client.messaging.broadcast(topic_id="news", message={"foo": "bar"})
     client.messaging.broadcast(topic_id="some_other_id", message={"foo": "baz"})
 
+    # Sleep for a moment before we check for any messages.
+    time.sleep(2.0)
+
     # Check for new messages on the topics we subscribed above.
     messages = client.messaging.get_next_messages()
     for message in messages:
-        logging.info(f"topic_id: {message['topic_id']} message: {message['message']}")
+        logging.info(f"received topic_id: {message['topic_id']} message: {message['message']}")
     
     # Cleanly shut down the connection.
     logging.info("Closing connection")

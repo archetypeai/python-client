@@ -15,10 +15,12 @@ class MessagingApi(ApiBase):
         api_key: str,
         api_endpoint: str,
         client_name: str = "python_client",
-        rate_limiter_timeout_sec: float = 0.5) -> None:
+        rate_limiter_timeout_sec: float = 0.5,
+        fetch_time_sec=1.0) -> None:
         super().__init__(api_key, api_endpoint)
         self.client_name = client_name
         self.rate_limiter_timeout_sec = rate_limiter_timeout_sec
+        self.fetch_time_sec = fetch_time_sec
         self.last_get_time = 0.0
         self.subscriber_info = []
         self.subscribers = []
@@ -30,7 +32,8 @@ class MessagingApi(ApiBase):
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data_payload))
         self.subscriber_info.append(response)
 
-        new_subscriber = SocketManager(self.api_key, self.api_endpoint, num_worker_threads=1)
+        new_subscriber = SocketManager(
+            self.api_key, self.api_endpoint, num_worker_threads=1, fetch_time_sec=self.fetch_time_sec)
         new_subscriber._start_stream(response["subscriber_uid"], response["subscriber_endpoint"], "messaging")
         self.subscribers.append(new_subscriber)
         return response

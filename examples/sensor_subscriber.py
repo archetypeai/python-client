@@ -12,7 +12,7 @@ from archetypeai.api_client import ArchetypeAI
 
 def main(args):
     # Create a new client using you unique API key.
-    client = ArchetypeAI(args.api_key)
+    client = ArchetypeAI(args.api_key, num_sensor_threads=2)
 
     # Subscribe to a sensor from the Archetype AI cloud. Clients can only subscribe to
     # sensors within the same org_id as your api_key.
@@ -22,7 +22,9 @@ def main(args):
     counter = 0
     while counter < args.num_messages_to_receive:
         for event in client.sensors.get_sensor_data():
-            logging.info(f"topic_id: {event['topic_id']} keys: {event['data'].keys()}")
+            time_now = time.time()
+            latency = time_now - event["data"]["timestamp"]
+            logging.info(f"topic_id: {event['topic_id']} keys: {event['data'].keys()} latency: {latency:.3f} sec")
             counter += 1
 
     # Cleanly shut down the connection.
@@ -35,6 +37,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--sensor_name", required=True, type=str)
-    parser.add_argument("--num_messages_to_receive", default=10, type=int)
+    parser.add_argument("--num_messages_to_receive", default=100, type=int)
     args = parser.parse_args()
     main(args)

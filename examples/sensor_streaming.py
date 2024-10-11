@@ -4,13 +4,14 @@
 import argparse
 import logging
 import time
+import random
 
 from archetypeai.api_client import ArchetypeAI
 
 
 def main(args):
     # Create a new client using you unique API key.
-    client = ArchetypeAI(args.api_key, num_sensor_threads=2)
+    client = ArchetypeAI(args.api_key, num_sensor_threads=1)
 
     # Register the sensor with the Archetype AI cloud. Registering your sensor will create
     # a unique sensor ID for this session and open a dedicated endpoint to stream sensor data.
@@ -19,19 +20,11 @@ def main(args):
 
     # Send some example events and data to the cloud. Data and events can be
     # filtered in cloud and other clients via the topic_id.
-    logging.info("Sending first event...")
-    client.sensors.send(topic_id="sensor_events", data=f"Hi, this is {args.sensor_name}")
     for counter in range(args.num_events):
-        logging.info("Sending data...")
-        client.sensors.send(topic_id="sensor_data", data={"counter": counter})
-
-        # Get some real-time stats on the data being sent.
-        message_latency_ms = client.sensors.get_outgoing_message_queue_latency() * 1000.0
-        queue_size = client.sensors.get_outgoing_message_queue_size()
-        logging.info(f"message latency: {message_latency_ms:.2f} ms | queue size: {queue_size}")
+        data_values = [random.randint(0, 255) for i in range(args.payload_size)]
+        logging.info(f"Sending data. qsize: {client.sensors.get_outgoing_message_queue_size()}")
+        client.sensors.send(topic_id="sensor_data", data={"counter": counter, "values": data_values, "timestamp": time.time()})
         time.sleep(0.1)
-    logging.info("Sending last event...")
-    client.sensors.send(topic_id="sensor_events", data="See you later...")
 
     # Cleanly shut down the connection.
     logging.info("Closing connection")
@@ -47,5 +40,6 @@ if __name__ == "__main__":
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--sensor_name", required=True, type=str)
     parser.add_argument("--num_events", default=1000, type=int)
+    parser.add_argument("--payload_size", default=1024, type=int)
     args = parser.parse_args()
     main(args)
