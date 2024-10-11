@@ -48,9 +48,29 @@ class SensorsApi(ApiBase):
         return True 
 
     def get_stats(self):
-        if self.streamer:
-            return self.streamer.get_stats()
-        return {}
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.streamer.get_stats()
+
+    def get_incoming_data_queue_size(self) -> int:
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.incoming_data_queue.qsize()
+    
+    def get_incoming_message_queue_size(self) -> int:
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.incoming_message_queue.qsize()
+    
+    def get_outgoing_message_queue_size(self) -> int:
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.outgoing_message_queue.qsize()
+    
+    def get_max_outgoing_message_queue_size(self) -> int:
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.max_outgoing_message_queue_size
+    
+    def get_outgoing_message_queue_latency(self) -> float:
+        """Returns the latency of the latest outgoing message queue in seconds."""
+        assert self.streamer is not None, "Sensor not registered. Call register first."
+        return self.streamer.get_outgoing_message_queue_latency()
 
     def get_sensor_data(self) -> list[dict]:
         events = []
