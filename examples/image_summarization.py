@@ -7,12 +7,7 @@ import base64
 import logging
 
 from archetypeai.api_client import ArchetypeAI
-
-
-def base64_encode(filename: str) -> str:
-    with open(args.filename, "rb") as img_handle:
-        encoded_img = base64.b64encode(img_handle.read()).decode("utf-8")
-    return encoded_img
+from archetypeai.utils import base64_encode
 
 
 def main(args):
