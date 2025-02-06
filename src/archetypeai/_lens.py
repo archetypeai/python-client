@@ -17,13 +17,15 @@ class SessionsApi(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/sessions/info")
         return self.requests_get(api_endpoint)
 
-    def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1) -> dict:
+    def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1, session_id: str = "") -> dict:
         """Gets a list of metadata about any lens sessions across your org.
 
         Use the shard_index and max_items_per_shard to retrieve information about a subset of sessions.
+
+        To request metadata about a specific session, pass just the session_id.
         """
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/sessions/metadata")
-        params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard}
+        params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "session_id": session_id}
         return self.requests_get(api_endpoint, params=params)
 
     def create(self, lens_id: str) -> dict:
@@ -86,7 +88,7 @@ class LensApi(ApiBase):
 
         Use the shard_index and max_items_per_shard to retrieve information about a subset of lenses.
 
-        To request metadata about a specific lens, the lens_id.
+        To request metadata about a specific lens, pass just the lens_id.
         """
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/metadata")
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "lens_id": lens_id}
