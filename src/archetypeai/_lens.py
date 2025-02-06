@@ -49,9 +49,10 @@ class SessionsApi(ApiBase):
             return False
         return True
     
-    def read(self, session_id: str, client_id: str) -> list[dict]:
+    def read(self, session_id: str, client_id: str = "") -> list[dict]:
         """Reads an event from an open session and returns the response."""
         assert session_id in self.subscriber_cache, f"Unknown session ID {session_id}"
+        client_id = client_id if client_id else self.client_id
         event_data = {"type": "session.read", "event_data": {"client_id": client_id}}
         response = self.write(session_id, event_data)
         return response
