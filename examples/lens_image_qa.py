@@ -30,6 +30,10 @@ def main(args):
         session_id=session_id, session_endpoint=session_endpoint)
     assert is_connected
 
+    # Query the metadata for the specific session.
+    session_metadata = client.lens.sessions.get_metadata(session_id=session_id)
+    logging.info(f"session_metadata: {session_metadata}")
+
     # Load the input image and convert it to a base64 encoding.
     base64_img = base64_encode(args.filename)
 
