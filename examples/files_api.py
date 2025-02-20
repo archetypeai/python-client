@@ -10,7 +10,7 @@ from archetypeai.api_client import ArchetypeAI
 
 def main(args):
     # Create a new client using you unique API key.
-    client = ArchetypeAI(args.api_key)
+    client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
     # Upload a local file to the Archetype AI platform. Any data uploaded
     # will only be visible and accessible by other members of your org.
@@ -38,5 +38,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--filename", required=True, type=str)
+    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
     args = parser.parse_args()
     main(args)
