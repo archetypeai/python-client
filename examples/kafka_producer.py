@@ -9,7 +9,7 @@ def main(args):
     # Create a new client using you unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    producer = client.internal.kafka.create_producer(topic_ids=[args.topic_id])
+    producer = client.kafka.create_producer(topic_ids=[args.topic_id])
 
     for counter_value in range(args.num_test_messages):
         logging.info("Sending...")
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                         help="The ATAI api_key that the example will run under.")
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str,
                         help="The ATAI platform the example will connect to.")
-    parser.add_argument("--test_topic", required=True, type=str,
+    parser.add_argument("--topic_id", default="example_topic", type=str,
                         help="The topic to broadcast messages on.")
     parser.add_argument("--num_test_messages", default=100, type=int,
                         help="The number of messages to broadcast.")
