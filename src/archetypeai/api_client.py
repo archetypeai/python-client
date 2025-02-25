@@ -6,6 +6,7 @@ from archetypeai._files import FilesApi
 from archetypeai._messaging import MessagingApi
 from archetypeai._sensors import SensorsApi
 from archetypeai._lens import LensApi
+from archetypeai._kafka_client import KafkaApi
 
 
 class ArchetypeAI(ApiBase):
@@ -16,6 +17,7 @@ class ArchetypeAI(ApiBase):
     messaging: MessagingApi
     sensors: SensorsApi
     lens: LensApi
+    kafka: KafkaApi
 
     @staticmethod
     def get_version() -> str:
@@ -29,8 +31,10 @@ class ArchetypeAI(ApiBase):
 
     def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT, **kwargs) -> None:
         super().__init__(api_key, api_endpoint)
-        self.files = FilesApi(api_key, api_endpoint, **filter_kwargs(FilesApi.__init__, kwargs))
-        self.capabilities = CapabilitiesApi(api_key, api_endpoint, **filter_kwargs(CapabilitiesApi.__init__, kwargs))
-        self.messaging = MessagingApi(api_key, api_endpoint, **filter_kwargs(MessagingApi.__init__, kwargs))
-        self.sensors = SensorsApi(api_key, api_endpoint, **filter_kwargs(SensorsApi.__init__, kwargs))
-        self.lens = LensApi(api_key, api_endpoint, **filter_kwargs(LensApi.__init__, kwargs))
+        input_args = {"api_key": api_key, "api_endpoint": api_endpoint, **kwargs}
+        self.files = FilesApi(api_key, api_endpoint, **filter_kwargs(FilesApi.__init__, input_args))
+        self.capabilities = CapabilitiesApi(**filter_kwargs(CapabilitiesApi.__init__, input_args))
+        self.messaging = MessagingApi(**filter_kwargs(MessagingApi.__init__, input_args))
+        self.sensors = SensorsApi(**filter_kwargs(SensorsApi.__init__, input_args))
+        self.lens = LensApi(**filter_kwargs(LensApi.__init__, input_args))
+        self.kafka = KafkaApi(**filter_kwargs(KafkaApi.__init__, input_args))
