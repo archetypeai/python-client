@@ -32,7 +32,7 @@ class ArchetypeAI(ApiBase):
     def __init__(self, api_key: str, api_endpoint: str = DEFAULT_ENDPOINT, **kwargs) -> None:
         super().__init__(api_key, api_endpoint)
         input_args = {"api_key": api_key, "api_endpoint": api_endpoint, **kwargs}
-        self.files = FilesApi(api_key, api_endpoint, **filter_kwargs(FilesApi.__init__, input_args))
+        self.files = FilesApi(**filter_kwargs(FilesApi.__init__, input_args))
         self.capabilities = CapabilitiesApi(**filter_kwargs(CapabilitiesApi.__init__, input_args))
         self.messaging = MessagingApi(**filter_kwargs(MessagingApi.__init__, input_args))
         self.sensors = SensorsApi(**filter_kwargs(SensorsApi.__init__, input_args))
