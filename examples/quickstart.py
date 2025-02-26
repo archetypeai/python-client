@@ -1,10 +1,10 @@
 # An example that demonstrates changing the focus of a lens
 # usage:
-#   python quickstart.py --api_key=<YOUR_API_KEY> --lens_id=<LENS_ID>
+#   python quickstart.py --api_key=<YOUR_API_KEY> --lens_id=<LENS_ID> --filename=<FILENAME>
 import argparse
 import logging
 
-from atai.clients.archetypeai.client import ArchetypeAI
+from archetypeai.api_client import ArchetypeAI
 from archetypeai.utils import base64_encode
 
 logger = logging.getLogger("quickstart")
