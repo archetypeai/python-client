@@ -1,6 +1,6 @@
 # An example that demonstrates changing the focus of a lens
 # usage:
-#   python quickstart.py --api_key=<YOUR_API_KEY> --lens_id=<LENS_ID>
+#   python quickstart.py --api_key=<YOUR_API_KEY> --lens_id=<LENS_ID> --filename=<FILENAME>
 import argparse
 import logging
 
