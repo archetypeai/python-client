@@ -4,7 +4,7 @@
 import argparse
 import logging
 
-from atai.clients.archetypeai.client import ArchetypeAI
+from archetypeai.api_client import ArchetypeAI
 from archetypeai.utils import base64_encode
 
 logger = logging.getLogger("quickstart")
