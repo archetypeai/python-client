@@ -1,7 +1,7 @@
 # An example that demonstrates how to hook up a video and stream it to a lens.
 # usage:
 #   python -m examples.files_api --api_key=<YOUR_API_KEY> --filename=<PATH_TO_LOCAL_VIDEO_FILE>
-#   python -m examples.lens_csv_stream --api_key=<YOUR_API_KEY> --file_id=<VIDEO_FILE_ID>
+#   python -m examples.lens_video_stream --api_key=<YOUR_API_KEY> --file_id=<VIDEO_FILE_ID>
 import argparse
 import logging
 from pprint import pformat
