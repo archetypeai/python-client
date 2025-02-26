@@ -6,6 +6,7 @@ import argparse
 import logging
 from pprint import pformat
 import time
+import secrets
 
 from archetypeai.api_client import ArchetypeAI
 
@@ -31,6 +32,10 @@ def main(args):
             "stream_type": "csv_file_reader",
             "stream_config": {
                 "file_id": args.file_id,
+                "window_size": args.window_size,
+                "step_size": args.step_size,
+                "loop_recording": args.loop_recording,
+                "output_format": "json",
             }
         }
     }
@@ -38,13 +43,34 @@ def main(args):
     response = client.lens.sessions.write(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
+    # Attach a kafka writer as output from the lens.
+    topic_uid = secrets.token_hex(8)  # Generate a unique topic for every run.
+    topic_id = f"example_csv_data_{topic_uid}"
+    event = {
+        "type": "output_stream.set",
+        "event_data": {
+            "stream_type": "kafka_writer",
+            "stream_config": {
+                "topic_ids": [topic_id],
+            }
+        }
+    }
+    logging.info(f"Sending event: {pformat(event, indent=4, depth=2)}")
+    response = client.lens.sessions.write(session_id, event)
+    logging.info(f"response: \n {pformat(response, indent=4)}")
+
+    # Create a kafka consumer to read the output of the lens, which will contain
+    # the CSV rows.
+    consumer = client.kafka.create_consumer(
+        topic_id=topic_id,
+        auto_offset_reset="earliest",
+        consumer_timeout_ms=1000
+    )
+
     start_time = time.time()
     while True:
-        # Read the latest logs from the lens.
-        response = client.lens.sessions.read(session_id)
-        if response["event_data"] is not None:
-            event = response["event_data"]
-            logging.info(f"response: \n {pformat(event, indent=4)}")
+        for message in consumer:
+            logging.info(message.value)
         if time.time() - start_time > args.max_run_time_sec:
             break
         time.sleep(0.5)
@@ -61,5 +87,8 @@ if __name__ == "__main__":
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
     parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199b1", type=str)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
+    parser.add_argument("--window_size", default=1, type=int)
+    parser.add_argument("--step_size", default=1, type=int)
+    parser.add_argument("--loop_recording", default=0, type=int)
     args = parser.parse_args()
     main(args)
