@@ -67,7 +67,7 @@ def main(args):
 
     # Adjust the focus of the lens.
     event = {
-        "type": "model.modify",
+        "type": "session.modify",
         "event_data": {
             "focus": "trucks",
         }
