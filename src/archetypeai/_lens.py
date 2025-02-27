@@ -8,9 +8,10 @@ from archetypeai._base import ApiBase
 class SessionsApi(ApiBase):
     """Main class for handling all lens session API calls."""
 
+    subscriber_cache: dict = {}
+
     def __init__(self, api_key: str, api_endpoint: str) -> None:
         super().__init__(api_key, api_endpoint)
-        self.subscriber_cache = {}
 
     def get_info(self) -> dict:
         """Gets the high-level info for all lens sessions across your org."""
