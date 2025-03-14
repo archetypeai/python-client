@@ -1,3 +1,4 @@
+from typing import Callable
 import json
 import logging
 from queue import Queue
@@ -153,3 +154,39 @@ class LensApi(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/metadata")
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "lens_id": lens_id}
         return self.requests_get(api_endpoint, params=params)
+
+    def create_and_run_session(self, lens_id: str, session_fn: Callable, auto_destroy: bool = True, **session_kwargs):
+        # Create a new session based on this lens.
+        session_id, session_endpoint = self.create_session(lens_id)
+
+        try:
+            # Connect to the lens and run the custom session.
+            session_fn(session_id, session_endpoint, **session_kwargs)
+        finally:
+            if auto_destroy:
+                # Clean up the lens at the end of the session.
+                self.destroy_lens_session(session_id)
+
+    def create_session(self, lens_id: str):
+        """Creates a session and returns the session_id and session_endpoint."""
+        try:
+            logging.debug(f"Creating lens with id: {lens_id}")
+            response = self.sessions.create(lens_id)
+            logging.debug(f"{response}")
+            if "errors" in response:
+                raise ValueError(response["errors"])
+        except ValueError as err:
+            logging.exception(f"{err}")
+            raise
+
+        # Extract the session_id and endpoint.
+        session_id = response["session_id"]
+        session_endpoint = response["session_endpoint"]
+        logging.info(f"Session ID: {session_id} @ {session_endpoint}")
+        return session_id, session_endpoint
+
+    def destroy_lens_session(self, session_id: str) -> None:
+        """Cleanly stops and destroys an active session."""
+        response = self.sessions.destroy(session_id)
+        logging.debug(response)
+        logging.info(f"Session Status: {response['session_status']}")
