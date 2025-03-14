@@ -1,5 +1,8 @@
 # An example that demonstrates how to hook up a kafka input/output stream to a lens.
 # usage:
+## Run the kafka producer to generate some example messages:
+#   python -m examples.kafka_producer --api_key=<YOUR_API_KEY> --topic_id=<YOUR INPUT TOPIC ID>
+## Run this example to read those messages and pass them in/out of a lens.
 #   python -m examples.lens_kafka_io --api_key=<YOUR_API_KEY> --input_topic_id=<YOUR INPUT TOPIC ID>  --output_topic_id=<YOUR OUTPUT TOPIC ID>
 import argparse
 import logging
@@ -11,13 +14,20 @@ from archetypeai.api_client import ArchetypeAI
 
 
 def main(args):
-    # Create a new client using you unique API key.
+    # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Create a new lens session using the specific lens.
-    response = client.lens.sessions.create(lens_id=args.lens_id)
-    session_id, session_endpoint = response["session_id"], response["session_endpoint"]
-    logging.info(f"lens session: {session_id} @ {session_endpoint}")
+    # Create and run a new session, using the session function below.
+    client.lens.create_and_run_session(
+        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+
+def session_fn(
+        session_id: str,
+        session_endpoint: str,
+        client: ArchetypeAI,
+        args: dict
+    ) -> None:
+    """Main function to run the logic of a custom lens session."""
 
     # Connect to the lens session.
     is_connected = client.lens.sessions.connect(
@@ -60,16 +70,9 @@ def main(args):
     )
 
     start_time = time.time()
-    while True:
+    while time.time() - start_time < args.max_run_time_sec:
         for message in consumer:
             logging.info(message.value)
-        if time.time() - start_time > args.max_run_time_sec:
-            break
-        time.sleep(0.5)
-
-    # Clean up the session.
-    response = client.lens.sessions.destroy(session_id)
-    logging.info(f"session status: {pformat(response['session_status'], indent=4)}")
 
 
 if __name__ == "__main__":
