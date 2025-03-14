@@ -10,8 +10,20 @@ from archetypeai.api_client import ArchetypeAI
 
 
 def main(args):
-    # Create a new client using you unique API key.
+    # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
+
+    # Create and run a new session, using the session function below.
+    client.lens.create_and_run_session(
+        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+
+def session_fn(
+        session_id: str,
+        session_endpoint: str,
+        client: ArchetypeAI,
+        args: dict
+    ) -> None:
+    """Main function to run the logic of a custom lens session."""
 
     # Create a new lens session using the specific lens.
     response = client.lens.sessions.create(lens_id=args.lens_id)
@@ -40,19 +52,12 @@ def main(args):
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     start_time = time.time()
-    while True:
+    while time.time() - start_time < args.max_run_time_sec:
         # Read the latest logs from the lens.
         response = client.lens.sessions.read(session_id)
         if response["event_data"] is not None:
             event = response["event_data"]
             logging.info(f"response: \n {pformat(event, indent=4)}")
-        if time.time() - start_time > args.max_run_time_sec:
-            break
-        time.sleep(0.5)
-
-    # Clean up the session.
-    response = client.lens.sessions.destroy(session_id)
-    logging.info(f"session status: {pformat(response['session_status'], indent=4)}")
 
 
 if __name__ == "__main__":
