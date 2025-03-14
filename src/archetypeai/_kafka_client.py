@@ -15,6 +15,7 @@ class KafkaMessageConsumer:
         topic_uid: str,
         auto_offset_reset: str,
         consumer_timeout_ms: int,
+        consumer_message_batch_size: int,
     ) -> None:
         self.consumer = KafkaConsumer(
             topic_uid,
@@ -23,10 +24,14 @@ class KafkaMessageConsumer:
             consumer_timeout_ms=consumer_timeout_ms,
             value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
+        self.consumer_message_batch_size = consumer_message_batch_size
 
     def __iter__(self):
-        for message in self.consumer:
+        batch_size = self.consumer_message_batch_size
+        for batch_index, message in enumerate(self.consumer):
             yield message
+            if batch_size > 0 and batch_index >= batch_size:
+                break
 
 
 class KafkaMessageProducer:
@@ -88,7 +93,8 @@ class KafkaApi(ApiBase):
         self,
         topic_id: str,
         auto_offset_reset: str = "earliest",
-        consumer_timeout_ms: int = 30000
+        consumer_timeout_ms: int = 30000,
+        consumer_message_batch_size: int = 16,
         ) -> KafkaMessageConsumer:
         """Subscribes to the topic_id on the Archetype kafka service and returns a consumer for them."""
         assert topic_id, "Empty topic id!"
@@ -99,6 +105,7 @@ class KafkaApi(ApiBase):
             kafka_broker_endpoints,
             topic_uid,
             auto_offset_reset=auto_offset_reset,
-            consumer_timeout_ms=consumer_timeout_ms
+            consumer_timeout_ms=consumer_timeout_ms,
+            consumer_message_batch_size=consumer_message_batch_size,
         )
         return consumer
