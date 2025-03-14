@@ -9,6 +9,7 @@ from archetypeai._base import ApiBase
 
 
 class LensSessionSocket:
+    """Manages websocket connections for each lens session."""
 
     heartbeat_sec: int = 30
     run_worker: bool = True
