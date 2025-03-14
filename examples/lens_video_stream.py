@@ -32,6 +32,16 @@ def session_fn(
         session_id=session_id, session_endpoint=session_endpoint)
     assert is_connected
 
+    # Adjust the focus of the lens.
+    event = {
+        "type": "session.modify",
+        "event_data": {
+            "focus": args.focus,
+            "max_new_tokens": args.max_new_tokens,
+        }
+    }
+    response = client.lens.sessions.write(session_id, event)
+
     # Attach a video file reader as input to the lens.
     event = {
         "type": "input_stream.set",
@@ -87,5 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
     parser.add_argument("--window_size", default=1, type=int)
     parser.add_argument("--step_size", default=1, type=int)
+    parser.add_argument("--focus", default="Describe the image.", type=str)
+    parser.add_argument("--max_new_tokens", default=256, type=int)
     args = parser.parse_args()
     main(args)
