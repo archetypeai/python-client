@@ -1,9 +1,10 @@
 import json
 import logging
-import websocket
 from queue import Queue
 import threading
 import time
+
+import websocket
 
 from archetypeai._base import ApiBase
 
