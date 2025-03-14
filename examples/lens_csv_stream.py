@@ -1,6 +1,8 @@
 # An example that demonstrates how to hook up a CSV file and stream it to a lens.
 # usage:
+## Upload your CSV file to the Newton Platform:
 #   python -m examples.files_api --api_key=<YOUR_API_KEY> --filename=<PATH_TO_LOCAL_CSV>
+## Run this example passing in the CSV file_id:
 #   python -m examples.lens_csv_stream --api_key=<YOUR_API_KEY> --file_id=<CSV_FILE_ID>
 import argparse
 import logging
@@ -12,13 +14,20 @@ from archetypeai.api_client import ArchetypeAI
 
 
 def main(args):
-    # Create a new client using you unique API key.
+    # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Create a new lens session using the specific lens.
-    response = client.lens.sessions.create(lens_id=args.lens_id)
-    session_id, session_endpoint = response["session_id"], response["session_endpoint"]
-    logging.info(f"lens session: {session_id} @ {session_endpoint}")
+    # Create and run a new session, using the session function below.
+    client.lens.create_and_run_session(
+        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+
+def session_fn(
+        session_id: str,
+        session_endpoint: str,
+        client: ArchetypeAI,
+        args: dict
+    ) -> None:
+    """Main function to run the logic of a custom lens session."""
 
     # Connect to the lens session.
     is_connected = client.lens.sessions.connect(
@@ -72,11 +81,6 @@ def main(args):
     while time.time() - start_time < args.max_run_time_sec:
         for message in consumer:
             logging.info(message.value)
-
-    # Clean up the session.
-    response = client.lens.sessions.destroy(session_id)
-    logging.info(response)
-    logging.info(f"session status: {pformat(response['session_status'], indent=4)}")
 
 
 if __name__ == "__main__":
