@@ -11,8 +11,20 @@ from archetypeai.utils import base64_encode
 
 
 def main(args):
-    # Create a new client using you unique API key.
+    # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
+
+    # Create and run a new session, using the session function below.
+    client.lens.create_and_run_session(
+        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+
+def session_fn(
+        session_id: str,
+        session_endpoint: str,
+        client: ArchetypeAI,
+        args: dict
+    ) -> None:
+    """Main function to run the logic of a custom lens session."""
 
     # Query the metadata for the specific lens and extract the default lens config.
     lens_metadata = client.lens.get_metadata(lens_id=args.lens_id)
@@ -20,19 +32,10 @@ def main(args):
     lens_name, lens_config = lens_metadata[0]["lens_name"], lens_metadata[0]["lens_config"]
     logging.info(f"lens name: {lens_name} lens id: {args.lens_id}")
 
-    # Create a new lens session using the specific lens.
-    response = client.lens.sessions.create(lens_id=args.lens_id)
-    session_id, session_endpoint = response["session_id"], response["session_endpoint"]
-    logging.info(f"lens session: {session_id} @ {session_endpoint}")
-
     # Connect to the lens session.
     is_connected = client.lens.sessions.connect(
         session_id=session_id, session_endpoint=session_endpoint)
     assert is_connected
-
-    # Query the metadata for the specific session.
-    session_metadata = client.lens.sessions.get_metadata(session_id=session_id)
-    logging.info(f"session_metadata: {session_metadata}")
 
     # Load the input image and convert it to a base64 encoding.
     base64_img = base64_encode(args.filename)
@@ -56,10 +59,6 @@ def main(args):
     logging.info(f"Sending event: {pformat(event_message, indent=4, depth=2)}")
     response = client.lens.sessions.write(session_id, event_message)
     logging.info(f"response: \n {pformat(response, indent=4)}")
-
-    # Clean up the session.
-    response = client.lens.sessions.destroy(session_id)
-    logging.info(f"session status: {pformat(response['session_status'], indent=4)}")
 
 
 if __name__ == "__main__":
