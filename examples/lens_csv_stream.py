@@ -64,19 +64,18 @@ def main(args):
     consumer = client.kafka.create_consumer(
         topic_id=topic_id,
         auto_offset_reset="earliest",
-        consumer_timeout_ms=1000
+        consumer_timeout_ms=1000,
+        consumer_message_batch_size=10,
     )
 
     start_time = time.time()
-    while True:
+    while time.time() - start_time < args.max_run_time_sec:
         for message in consumer:
             logging.info(message.value)
-        if time.time() - start_time > args.max_run_time_sec:
-            break
-        time.sleep(0.5)
 
     # Clean up the session.
     response = client.lens.sessions.destroy(session_id)
+    logging.info(response)
     logging.info(f"session status: {pformat(response['session_status'], indent=4)}")
 
 
