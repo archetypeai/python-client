@@ -155,17 +155,26 @@ class LensApi(ApiBase):
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "lens_id": lens_id}
         return self.requests_get(api_endpoint, params=params)
 
-    def create_and_run_session(self, lens_id: str, session_fn: Callable, auto_destroy: bool = True, **session_kwargs):
+    def create_and_run_session(
+        self,
+        lens_id: str,
+        session_fn: Callable,
+        auto_destroy: bool = True,
+        **session_kwargs
+        ):
         # Create a new session based on this lens.
         session_id, session_endpoint = self.create_session(lens_id)
 
+        fn_response = None
         try:
             # Connect to the lens and run the custom session.
-            session_fn(session_id, session_endpoint, **session_kwargs)
+            fn_response = session_fn(session_id, session_endpoint, **session_kwargs)
         finally:
             if auto_destroy:
                 # Clean up the lens at the end of the session.
                 self.destroy_lens_session(session_id)
+
+        return fn_response
 
     def create_session(self, lens_id: str):
         """Creates a session and returns the session_id and session_endpoint."""
