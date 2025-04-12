@@ -56,6 +56,11 @@ class LocalFilesApi(FilesApiBase):
         )
         return response_data
 
+    def delete(self, filename: str) -> dict:
+        """Deletes a file that was previously uploaded to the Archetype AI platform."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"files/delete/{filename}")
+        return self.requests_delete(api_endpoint)
+
 
 class S3FilesApi(FilesApiBase):
     """API for working with Amazon s3 files."""

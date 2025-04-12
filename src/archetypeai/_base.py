@@ -46,6 +46,14 @@ class ApiBase:
         response = requests.post(api_endpoint, data=data_payload, headers={**self.auth_headers, **additional_headers})
         return response.status_code, safely_extract_response_data(response)
 
+    def requests_delete(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
+        request_args = {"api_endpoint": api_endpoint, "params": params, "additional_headers": additional_headers}
+        return self._execute_request(request_func=self._requests_delete, request_args=request_args)
+
+    def _requests_delete(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> Tuple[int, dict]:
+        response = requests.delete(api_endpoint, params=params, headers={**self.auth_headers, **additional_headers})
+        return response.status_code, safely_extract_response_data(response)
+
     def _execute_request(self, request_func, request_args: dict):
         num_attempts = 0
         while num_attempts < self.num_retries:
