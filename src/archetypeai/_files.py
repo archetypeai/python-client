@@ -16,14 +16,19 @@ class FilesApiBase(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "files/info")
         return self.requests_get(api_endpoint)
 
-    def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1) -> dict:
+    def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1, file_id: Union[str, None] = None) -> dict:
         """Gets a list of metadata about any files your org has uploaded to the Archetype AI platform.
 
-        Use the shard_index and max_items_per_shard to retrieve information about a subset of files.
-        
+        Use the shard_index and max_items_per_shard to retrieve metadata about a subset of files.
+
+        Use the file_id argument to retrieve the metadata for a specific file.
         """
-        api_endpoint = self._get_endpoint(self.api_endpoint, "files/metadata")
-        params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard}
+        if file_id is None:
+            api_endpoint = self._get_endpoint(self.api_endpoint, "files/metadata")
+            params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard}
+        else:
+            api_endpoint = self._get_endpoint(self.api_endpoint, f"files/metadata/{file_id}")
+            params = {}
         return self.requests_get(api_endpoint, params=params)
 
 
