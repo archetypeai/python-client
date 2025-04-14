@@ -8,6 +8,7 @@ import time
 import websocket
 
 from archetypeai._base import ApiBase
+from archetypeai._sse import ServerSideEventsReader
 
 
 class LensSessionSocket:
@@ -78,15 +79,19 @@ class LensSessionSocket:
 class SessionsApi(ApiBase):
     """Main class for handling all lens session API calls."""
 
-    subscriber_cache: dict = {}
+    session_socket_cache: dict = {}
+    sse_consumer_cache: dict = {}
 
     def __init__(self, api_key: str, api_endpoint: str) -> None:
         super().__init__(api_key, api_endpoint)
 
     def __del__(self):
-        for session_id in self.subscriber_cache:
-            self.subscriber_cache[session_id].close()
-        self.subscriber_cache = {}
+        for session_id in self.session_socket_cache:
+            self.session_socket_cache[session_id].close()
+        self.session_socket_cache = {}
+        for session_id in self.sse_consumer_cache:
+            self.sse_consumer_cache[session_id].close()
+        self.sse_consumer_cache = {}
 
     def get_info(self) -> dict:
         """Gets the high-level info for all lens sessions across your org."""
@@ -120,7 +125,7 @@ class SessionsApi(ApiBase):
     def connect(self, session_id: str, session_endpoint: str) -> bool:
         try:
             socket = LensSessionSocket(session_endpoint, {"Authorization":f"Bearer {self.api_key}"})
-            self.subscriber_cache[session_id] = socket
+            self.session_socket_cache[session_id] = socket
         except Exception as exception:
             logging.exception(f"Failed to connect to session at {session_endpoint}")
             return False
@@ -128,7 +133,7 @@ class SessionsApi(ApiBase):
     
     def read(self, session_id: str, client_id: str = "") -> list[dict]:
         """Reads an event from an open session and returns the response."""
-        assert session_id in self.subscriber_cache, f"Unknown session ID {session_id}"
+        assert session_id in self.session_socket_cache, f"Unknown session ID {session_id}"
         client_id = client_id if client_id else self.client_id
         event_data = {"type": "session.read", "event_data": {"client_id": client_id}}
         response = self.write(session_id, event_data)
@@ -136,9 +141,28 @@ class SessionsApi(ApiBase):
     
     def write(self, session_id: str, event_data: dict) -> dict:
         """Writes an event to an open session and returns the response."""
-        assert session_id in self.subscriber_cache, f"Unknown session ID {session_id}"
-        response = self.subscriber_cache[session_id].send_and_recv(event_data)
+        assert session_id in self.session_socket_cache, f"Unknown session ID {session_id}"
+        response = self.session_socket_cache[session_id].send_and_recv(event_data)
         return response
+
+    def sse_consumer_create(self, session_id: str) -> bool:
+        """Creates a new server-side-event consumer and starts it in a background thread."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"lens/sessions/consumer/{session_id}")
+        headers = {"Authorization":f"Bearer {self.api_key}"}
+        try:
+            sse_consumer = ServerSideEventsReader(api_endpoint, headers)
+            self.sse_consumer_cache[session_id] = sse_consumer
+            return True
+        except Exception as exception:
+            logging.exception(f"Failed to start SSE reader for session: {session_id}")
+        return False
+
+    def sse_consumer_read(self, session_id: str, max_num_events: int = -1) -> list[dict]:
+        """Reads any pending events from an active server-side-event consumer."""
+        assert session_id in self.sse_consumer_cache, f"Unknown session ID {session_id}"
+        sse_consumer = self.sse_consumer_cache[session_id]
+        for event in sse_consumer_read.read(max_num_events=max_num_events):
+            yield event
 
 
 class LensApi(ApiBase):

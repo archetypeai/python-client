@@ -74,13 +74,7 @@ def session_fn(
     response = client.lens.sessions.write(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
-    # Create a kafka consumer to read the output of the lens, which will contain
-    # the CSV rows.
-    consumer = client.kafka.create_consumer(
-        topic_id=topic_id,
-        auto_offset_reset="earliest",
-        consumer_timeout_ms=1000
-    )
+    # Create a SSE reader to read the output of the lens.
 
     start_time = time.time()
     while time.time() - start_time < args.max_run_time_sec:

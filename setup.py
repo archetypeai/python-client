@@ -18,6 +18,7 @@ setup(
         "websockets>=12.0",
         "websocket-client>=1.8.0",
         "kafka-python==2.0.4",
+        "sseclient==0.0.27",
     ],
     include_package_data=True,
 )
