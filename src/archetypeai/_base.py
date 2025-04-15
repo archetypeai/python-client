@@ -98,3 +98,6 @@ class ApiBase:
         if file_ext in file_ext_mapper:
             return file_ext_mapper[file_ext]
         raise ValueError(f"Unsupported file type: {file_ext}")
+
+    def get_client_id(self) -> str:
+        return self.client_id
