@@ -143,7 +143,7 @@ class SessionsApi(ApiBase):
 
     def process_event(self, session_id: str, event: dict) -> dict:
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/sessions/events/process")
-        data = {"event": event}
+        data = {"session_id": session_id, "event": event}
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
         return response
 
