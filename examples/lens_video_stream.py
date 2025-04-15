@@ -54,32 +54,30 @@ def session_fn(
             }
         }
     }
-    logging.info(f"Sending event: {pformat(event, indent=4, depth=2)}")
     response = client.lens.sessions.write(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
-    # Attach a kafka writer as output from the lens.
-    topic_uid = secrets.token_hex(8)  # Generate a unique topic for every run.
-    topic_id = f"example_detections_{topic_uid}"
+    # Attach a server-side events writer as output from the lens.
     event = {
         "type": "output_stream.set",
         "event_data": {
-            "stream_type": "kafka_writer",
-            "stream_config": {
-                "topic_ids": [topic_id],
-            }
+            "stream_type": "server_side_events_writer",
+            "stream_config": {},
         }
     }
-    logging.info(f"Sending event: {pformat(event, indent=4, depth=2)}")
     response = client.lens.sessions.write(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     # Create a SSE reader to read the output of the lens.
+    sse_reader = client.lens.sessions.create_sse_consumer(session_id)
 
     start_time = time.time()
     while time.time() - start_time < args.max_run_time_sec:
-        for message in consumer:
-            logging.info(message.value)
+        for event in sse_reader.read():
+            logging.info(event)
+
+    # Close any active reader.
+    sse_reader.close()
 
 
 if __name__ == "__main__":
