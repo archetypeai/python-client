@@ -25,16 +25,6 @@ def session_fn(
     ) -> None:
     """Main function to run the logic of a custom lens session."""
 
-    # Create a new lens session using the specific lens.
-    response = client.lens.sessions.create(lens_id=args.lens_id)
-    session_id, session_endpoint = response["session_id"], response["session_endpoint"]
-    logging.info(f"lens session: {session_id} @ {session_endpoint}")
-
-    # Connect to the lens session.
-    is_connected = client.lens.sessions.connect(
-        session_id=session_id, session_endpoint=session_endpoint)
-    assert is_connected
-
     # Attach an RTSP camera to the input of the lens.
     event = {
         "type": "input_stream.set",
@@ -47,14 +37,14 @@ def session_fn(
             }
         }
     }
-    logging.info(f"Sending event: {pformat(event, indent=4, depth=2)}")
-    response = client.lens.sessions.write(session_id, event)
+    response = client.lens.sessions.process_event(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     start_time = time.time()
     while time.time() - start_time < args.max_run_time_sec:
         # Read the latest logs from the lens.
-        response = client.lens.sessions.read(session_id)
+        event = {"type": "session.read", "event_data": {"client_id": client.get_client_id()}}
+        response = client.lens.sessions.process_event(session_id, event)
         if response["event_data"] is not None:
             event = response["event_data"]
             logging.info(f"response: \n {pformat(event, indent=4)}")
