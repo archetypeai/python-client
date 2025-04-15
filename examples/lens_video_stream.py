@@ -27,11 +27,6 @@ def session_fn(
     ) -> None:
     """Main function to run the logic of a custom lens session."""
 
-    # Connect to the lens session.
-    is_connected = client.lens.sessions.connect(
-        session_id=session_id, session_endpoint=session_endpoint)
-    assert is_connected
-
     # Adjust the focus of the lens.
     event = {
         "type": "session.modify",
@@ -40,7 +35,7 @@ def session_fn(
             "max_new_tokens": args.max_new_tokens,
         }
     }
-    response = client.lens.sessions.write(session_id, event)
+    response = client.lens.sessions.process_event(session_id, event)
 
     # Attach a video file reader as input to the lens.
     event = {
@@ -54,7 +49,7 @@ def session_fn(
             }
         }
     }
-    response = client.lens.sessions.write(session_id, event)
+    response = client.lens.sessions.process_event(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     # Attach a server-side events writer as output from the lens.
@@ -65,7 +60,7 @@ def session_fn(
             "stream_config": {},
         }
     }
-    response = client.lens.sessions.write(session_id, event)
+    response = client.lens.sessions.process_event(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     # Create a SSE reader to read the output of the lens.
