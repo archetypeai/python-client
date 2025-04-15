@@ -141,6 +141,12 @@ class SessionsApi(ApiBase):
         response = self.session_socket_cache[session_id].send_and_recv(event_data)
         return response
 
+    def process_event(self, session_id: str, event: dict) -> dict:
+        api_endpoint = self._get_endpoint(self.api_endpoint, "lens/sessions/events/process")
+        data = {"event": event}
+        response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        return response
+
     def create_sse_consumer(self, session_id: str) -> ServerSideEventsReader:
         """Creates a new server-side-event consumer and starts it in a background thread."""
         api_endpoint = self._get_endpoint(self.api_endpoint, f"lens/sessions/consumer/{session_id}")
