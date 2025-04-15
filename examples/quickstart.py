@@ -26,21 +26,16 @@ def session_fn(
     # Extract the default values from the lens.
     lens_config = read_default_lens_config(client, args.lens_id)
 
-    # Connect to the session.
-    log_heading("Connect to the session")
-    response = client.lens.sessions.connect(session_id, session_endpoint)
-    logging.debug(response)
-
     # Query the status of the session.
     log_heading("Get session status")
-    event_message = {"type": "session.status"}
-    response = client.lens.sessions.write(session_id, event_message)
+    event = {"type": "session.status"}
+    response = client.lens.sessions.process_event(session_id, event)
     logging.debug(response)
 
     # Validate the session.
     log_heading("Validate the session")
-    event_message = {"type": "session.validate"}
-    response = client.lens.sessions.write(session_id, event_message)
+    event = {"type": "session.validate"}
+    response = client.lens.sessions.process_event(session_id, event)
     logging.debug(f"{response}")
     if "message" in response:
         logging.error(response["message"])
@@ -61,7 +56,7 @@ def session_fn(
         instruction = lens_config["model_parameters"]["instruction"]
 
     # Create a model query event and send this directly to the lens.
-    event_message = {
+    event = {
         "type": "model.query",
         "event_data": {
             "model_version": lens_config["model_parameters"]["model_version"],
@@ -77,7 +72,7 @@ def session_fn(
         }
     }
     log_heading("Running prediction")
-    response = client.lens.sessions.write(session_id, event_message)
+    response = client.lens.sessions.process_event(session_id, event)
     logging.debug(response)
 
     # Show the description of the image
