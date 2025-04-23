@@ -82,7 +82,7 @@ class ServerSideEventsReader:
                     # Cancel the worker loop so the thread will gracefully stop.
                     self.continue_worker_loop = False
                     break
-            if self.max_read_time_sec >= 0 and time.time() - start_time > = self.max_read_time_sec:
+            if self.max_read_time_sec >= 0 and time.time() - start_time >= self.max_read_time_sec:
                 break
 
         current_time = time.time()
