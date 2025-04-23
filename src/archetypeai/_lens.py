@@ -147,11 +147,11 @@ class SessionsApi(ApiBase):
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
         return response
 
-    def create_sse_consumer(self, session_id: str) -> ServerSideEventsReader:
+    def create_sse_consumer(self, session_id: str, max_read_time_sec: float = -1.0) -> ServerSideEventsReader:
         """Creates a new server-side-event consumer and starts it in a background thread."""
         api_endpoint = self._get_endpoint(self.api_endpoint, f"lens/sessions/consumer/{session_id}")
         headers = {"Authorization":f"Bearer {self.api_key}"}
-        sse_consumer = ServerSideEventsReader(api_endpoint, headers)
+        sse_consumer = ServerSideEventsReader(api_endpoint, headers, max_read_time_sec)
         return sse_consumer
 
 

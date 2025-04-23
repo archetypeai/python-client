@@ -64,12 +64,13 @@ def session_fn(
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
     # Create a SSE reader to read the output of the lens.
-    sse_reader = client.lens.sessions.create_sse_consumer(session_id)
+    sse_reader = client.lens.sessions.create_sse_consumer(
+        session_id, max_read_time_sec=args.max_run_time_sec)
 
-    start_time = time.time()
-    while time.time() - start_time < args.max_run_time_sec:
-        for event in sse_reader.read():
-            logging.info(event)
+    # Read events from the SSE stream until either the last message is
+    # received or the max read time has been reached.
+    for event in sse_reader.read(block=True):
+        logging.info(event)
 
     # Close any active reader.
     sse_reader.close()
