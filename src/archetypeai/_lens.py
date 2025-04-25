@@ -47,6 +47,8 @@ class LensSessionSocket:
     def _worker(self, session_endpoint: str, header: dict):
         self.run_worker = True
         num_restarts = 0
+        if "User-Agent" not in header:
+            header["User-Agent"] = "archetypeai.py"
         while self.run_worker:
             try:
                 self.run_worker = self._run_worker_loop(session_endpoint, header)
