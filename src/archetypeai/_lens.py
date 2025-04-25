@@ -14,12 +14,12 @@ from archetypeai._sse import ServerSideEventsReader
 class LensSessionSocket:
     """Manages websocket connections for each lens session."""
 
-    heartbeat_sec: int = 30
-    run_worker: bool = False
-    read_event_queue: Queue = Queue()
-    write_event_queue: Queue = Queue()
-
     def __init__(self, session_endpoint: str, header: dict):
+        self.heartbeat_sec = 30
+        self.max_worker_restarts = 10
+        self.run_worker = False
+        self.read_event_queue = Queue()
+        self.write_event_queue = Queue()
         self.worker = threading.Thread(
             target=self._worker, args=(session_endpoint, header))
         self.worker.start()
@@ -46,11 +46,17 @@ class LensSessionSocket:
     
     def _worker(self, session_endpoint: str, header: dict):
         self.run_worker = True
+        num_restarts = 0
         while self.run_worker:
             try:
                 self.run_worker = self._run_worker_loop(session_endpoint, header)
             except Exception as exception:
-                logging.exception("Failed to run socket loop - restarting...")
+                num_restarts += 1
+                if num_restarts < self.max_worker_restarts:
+                    logging.exception("Failed to run socket loop - restarting...")
+                else:
+                    logging.exception("Failed to run socket loop...")
+                    self.run_worker = False
 
     def _run_worker_loop(self, session_endpoint: str, header: dict) -> bool:
         socket = websocket.create_connection(session_endpoint, header=header)
