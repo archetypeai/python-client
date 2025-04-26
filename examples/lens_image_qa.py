@@ -56,9 +56,9 @@ def session_fn(
             "sensor_metadata": {}
         }
     }
-    logging.info(f"Sending event: {pformat(event_message, indent=4, depth=2)}")
+    logging.info(f"Sending event: \n{pformat(event_message, indent=2, depth=2)}")
     response = client.lens.sessions.write(session_id, event_message)
-    logging.info(f"response: \n {pformat(response, indent=4)}")
+    logging.info(f"response: \n {pformat(response, indent=2)}")
 
 
 if __name__ == "__main__":
