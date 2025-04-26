@@ -32,11 +32,6 @@ def session_fn(
     lens_name, lens_config = lens_metadata[0]["lens_name"], lens_metadata[0]["lens_config"]
     logging.info(f"lens name: {lens_name} lens id: {args.lens_id}")
 
-    # Connect to the lens session.
-    is_connected = client.lens.sessions.connect(
-        session_id=session_id, session_endpoint=session_endpoint)
-    assert is_connected
-
     # Load the input image and convert it to a base64 encoding.
     base64_img = base64_encode(args.filename)
 
@@ -57,7 +52,7 @@ def session_fn(
         }
     }
     logging.info(f"Sending event: \n{pformat(event_message, indent=2, depth=2)}")
-    response = client.lens.sessions.write(session_id, event_message)
+    response = client.lens.sessions.process_event(session_id, event_message)
     logging.info(f"response: \n {pformat(response, indent=2)}")
 
 
