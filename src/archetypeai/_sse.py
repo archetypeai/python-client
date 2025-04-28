@@ -46,11 +46,13 @@ class ServerSideEventsReader:
                 num_events_read += 1
             # Stop reading if we've reached the end of the events (in non-blocking mode)
             # or if we've reached the maximum number of events.
-            queue_not_empty = not self.read_event_queue.empty()
-            if not queue_not_empty and not block:
+            queue_empty = not self.read_event_queue.empty()
+            queue_not_empty = not queue_empty
+            if queue_empty and not block:
                 keep_reading = False
             if max_num_events > 0 and num_events_read >= max_num_events:
                 keep_reading = False
+            # Always stop the reader loop if the main worker loop has stopped.
             keep_reading &= self.continue_worker_loop
     
     def _worker(self, session_endpoint: str, header: dict):
@@ -64,7 +66,7 @@ class ServerSideEventsReader:
             except Exception as exception:
                 logging.exception("Failed to run reader loop - restarting...")
                 time.sleep(restart_delay_sec)
-                restart_delay_sec *= 2
+                restart_delay_sec = max(restart_delay_sec * 2, 10)
 
     def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float, last_event_id: int) -> int:
 
