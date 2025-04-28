@@ -40,7 +40,7 @@ class ServerSideEventsReader:
         queue_not_empty = not self.read_event_queue.empty()
         keep_reading = True if block else queue_not_empty
         while keep_reading:
-            if queue_not_empty:
+            if queue_not_empty or block:
                 event = self.read_event_queue.get(block=block)
                 yield event
                 num_events_read += 1
