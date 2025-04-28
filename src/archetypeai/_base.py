@@ -54,6 +54,16 @@ class ApiBase:
         response = requests.delete(api_endpoint, params=params, headers={**self.auth_headers, **additional_headers})
         return response.status_code, safely_extract_response_data(response)
 
+    def requests_download(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
+        request_args = {"api_endpoint": api_endpoint, "params": params, "additional_headers": additional_headers}
+        return self._execute_request(request_func=self._requests_download, request_args=request_args)
+
+    def _requests_download(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> Tuple[int, requests.Response]:
+        response = requests.get(api_endpoint, params=params, headers={**self.auth_headers, **additional_headers})
+        if response.status_code != 200:
+            logging.warning(f"Failed to download file: {api_endpoint}. Error: {response}")
+        return response.status_code, response
+
     def _execute_request(self, request_func, request_args: dict):
         num_attempts = 0
         while num_attempts < self.num_retries:

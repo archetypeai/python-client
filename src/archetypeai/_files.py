@@ -1,5 +1,6 @@
 from typing import Dict, Union
 
+import logging
 import os
 import json
 
@@ -65,6 +66,19 @@ class LocalFilesApi(FilesApiBase):
         """Deletes a file that was previously uploaded to the Archetype AI platform."""
         api_endpoint = self._get_endpoint(self.api_endpoint, f"files/delete/{filename}")
         return self.requests_delete(api_endpoint)
+
+    def download(self, filename: str, local_filename: str = "") -> bool:
+        """Downloads a file that was previously uploaded to the Archetype AI platform."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"files/download/{filename}")
+        # If the local filename is not set then download the file using the remote filename.
+        if local_filename == "":
+            local_filename = filename
+        response = self.requests_download(api_endpoint)
+        success = response.status_code == 200
+        if success:
+            with open(local_filename, "wb") as file_handle:
+                    file_handle.write(response.content)
+        return success
 
 
 class S3FilesApi(FilesApiBase):
