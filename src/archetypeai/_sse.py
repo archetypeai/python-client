@@ -40,9 +40,15 @@ class ServerSideEventsReader:
         queue_not_empty = not self.read_event_queue.empty()
         keep_reading = True if block else queue_not_empty
         while keep_reading:
-            event = self.read_event_queue.get(block=block)
-            yield event
-            num_events_read += 1
+            if queue_not_empty:
+                event = self.read_event_queue.get(block=block)
+                yield event
+                num_events_read += 1
+            # Stop reading if we've reached the end of the events (in non-blocking mode)
+            # or if we've reached the maximum number of events.
+            queue_not_empty = not self.read_event_queue.empty()
+            if not queue_not_empty and not block:
+                keep_reading = False
             if max_num_events > 0 and num_events_read >= max_num_events:
                 keep_reading = False
             keep_reading &= self.continue_worker_loop
