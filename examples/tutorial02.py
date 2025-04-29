@@ -7,6 +7,7 @@ import base64
 import threading
 import cv2
 import imutils
+import time
 
 from archetypeai.api_client import ArchetypeAI
 from archetypeai.utils import base64_encode
@@ -140,7 +141,7 @@ def destroy_lens_session(client, session_id):
 
 def run_thread(stop_event, client, lens_config, session_id, frame):
     send_frame(client, lens_config, session_id, frame)
-    get_response(stop_event, client, session_id)
+    #get_response(stop_event, client, session_id)
 
 def send_frame(client, lens_config, session_id, frame):
     # Resize
@@ -178,9 +179,14 @@ def send_frame(client, lens_config, session_id, frame):
     }
 
     response = client.lens.sessions.write(session_id, event_message)
-    if ("message" in response):
-        logging.info(f"Response: {response}")
+
+    if response["type"] == "model.query.response":
+        query_result = response["event_data"]["response"]
+        logging.info(f"Response: {query_result}")
         logging.info("*** Press 'Q' to end the session ***")
+    
+    # Wait one second before sending the next frame
+    time.sleep(1)
     
 # Keep looping until there is a response
 def get_response(stop_event, client, session_id):
