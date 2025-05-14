@@ -107,7 +107,7 @@ class ServerSideEventsReader:
                         self.continue_worker_loop = False
                         break
                 except Exception as exception:
-                    logging.exception(f"Failed to parse JSON packet: {raw_data} {json_content}")
+                    logging.exception(f"Failed to parse JSON packet: {raw_data}")
                 
 
         current_time = time.time()
