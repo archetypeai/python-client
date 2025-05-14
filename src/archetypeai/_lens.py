@@ -41,11 +41,7 @@ class LensSessionSocket:
         """Writes an event to an open session and returns the response."""
         self.write_event_queue.put(event_data)
         response = self.read_event_queue.get()
-        if response:
-            response = json.loads(response)
-        else:
-            logging.warning(f"Received empty response: {response}")
-            response = {}
+        response = json.loads(response)
         return response
     
     def _worker(self, session_endpoint: str, header: dict):
@@ -79,7 +75,10 @@ class LensSessionSocket:
                 socket.send_binary(json.dumps(event_data).encode())
                 # Read back the response.
                 event_data = socket.recv()
-                self.read_event_queue.put(event_data)
+                if event_data:
+                    self.read_event_queue.put(event_data)
+                else:
+                    logging.warning(f"Received empty event: {event_data}")
             else:
                 time.sleep(0.1)
             # Send a periodic heartbeat to keep the connection alive.
