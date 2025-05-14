@@ -84,7 +84,8 @@ class ServerSideEventsReader:
                     raw_data = event.data
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
-                    event_data = json.loads(raw_data[2:-2])
+                    json_content = raw_data[2:-2]
+                    event_data = json.loads(json_content)
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
@@ -100,7 +101,7 @@ class ServerSideEventsReader:
                         self.continue_worker_loop = False
                         break
                 except Exception as exception:
-                    logging.exception(f"Failed to parse JSON packet: {raw_data}")
+                    logging.exception(f"Failed to parse JSON packet: {raw_data} {json_content}")
                 
 
         current_time = time.time()
