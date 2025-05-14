@@ -85,7 +85,7 @@ class ServerSideEventsReader:
                     raw_data = event.data
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
-                    json_content = raw_data[1:]
+                    json_content = str(raw_data[1:])
                     event_data = json.loads(json_content)
                     logging.info(f"DECODED: {event_data}")
 
