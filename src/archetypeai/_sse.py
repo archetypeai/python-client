@@ -4,6 +4,7 @@ import logging
 from queue import Queue
 import threading
 import time
+import ast
 
 from sseclient import SSEClient
 import requests
@@ -85,7 +86,7 @@ class ServerSideEventsReader:
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
                     json_content = raw_data[1:]
-                    event_data = json.loads(json_content)
+                    event_data = ast.literal_eval(json_content)
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
