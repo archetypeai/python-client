@@ -81,23 +81,25 @@ class ServerSideEventsReader:
             for event in sse_event_reader:
                 last_event_id = event.id
                 try:
+                    logging.info(f"READ: {event.data}")
                     event_data = json.loads(event.data)
+
+                    assert "type" in event_data
+                    self.read_event_queue.put(event_data)
+                    num_events_read += 1
+                    if event_data["type"] == "sse.stream.heartbeat":
+                        # Break from the reader loop to check to ensure the worker is still alive.
+                        break
+                    if event_data["type"] == "sse.stream.end":
+                        # Cancel the worker loop so the thread will gracefully stop.
+                        self.continue_worker_loop = False
+                        break
+                    if self.max_read_time_sec >= 0 and time.time() - start_time >= self.max_read_time_sec:
+                        self.continue_worker_loop = False
+                        break
                 except Exception as exception:
                     logging.exception(f"Failed to parse JSON packet: {event.data}")
-                self.read_event_queue.put(event_data)
-                num_events_read += 1
-
-                assert "type" in event_data
-                if event_data["type"] == "sse.stream.heartbeat":
-                    # Break from the reader loop to check to ensure the worker is still alive.
-                    break
-                if event_data["type"] == "sse.stream.end":
-                    # Cancel the worker loop so the thread will gracefully stop.
-                    self.continue_worker_loop = False
-                    break
-                if self.max_read_time_sec >= 0 and time.time() - start_time >= self.max_read_time_sec:
-                    self.continue_worker_loop = False
-                    break
+                
 
         current_time = time.time()
         run_time = current_time - start_time
