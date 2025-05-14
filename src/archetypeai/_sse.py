@@ -82,7 +82,6 @@ class ServerSideEventsReader:
                 last_event_id = event.id
                 try:
                     raw_data = event.data
-                    logging.info(f"TYPE: {type(raw_data)} {raw_data}")
                     event_data = json.loads(raw_data)
 
                     assert "type" in event_data
@@ -99,6 +98,7 @@ class ServerSideEventsReader:
                         self.continue_worker_loop = False
                         break
                 except Exception as exception:
+                    logging.info(f"TYPE: {type(raw_data)} {raw_data}")
                     logging.exception(f"Failed to parse JSON packet: {event.data}")
                 
 
