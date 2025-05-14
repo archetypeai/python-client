@@ -59,6 +59,7 @@ class LensSessionSocket:
                 else:
                     logging.exception("Failed to run socket loop...")
                     self.run_worker = False
+        self.run_worker = False
 
     def _run_worker_loop(self, session_endpoint: str, header: dict) -> bool:
         socket = websocket.create_connection(session_endpoint, header=header)
