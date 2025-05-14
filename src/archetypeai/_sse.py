@@ -99,7 +99,7 @@ class ServerSideEventsReader:
                         break
                 except Exception as exception:
                     logging.info(f"TYPE: {type(raw_data)} {raw_data}")
-                    logging.exception(f"Failed to parse JSON packet: {event.data}")
+                    logging.exception(f"Failed to parse JSON packet: {raw_data}")
                 
 
         current_time = time.time()
