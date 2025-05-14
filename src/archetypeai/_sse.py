@@ -82,12 +82,16 @@ class ServerSideEventsReader:
             for event in sse_event_reader:
                 last_event_id = event.id
                 try:
+                    # The SSE stream encodes JSON data as utf-8 binary data which is then packed
+                    # into a standard string along with the SSE protocol headers. To decode the
+                    # data, we need to strip the binary and single-quote identifiers to get back
+                    # a cleaned string and then convert that to json.
                     raw_data = event.data
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
-                    json_content = str(raw_data[1:]).replace("'", "")
+                    # Remove the outer binary and single quote tags.
+                    json_content = str(raw_data[1:]).replace("'", "") 
                     event_data = json.loads(json_content)
-                    logging.info(f"DECODED: {event_data}")
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
