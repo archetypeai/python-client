@@ -82,8 +82,7 @@ class ServerSideEventsReader:
                 last_event_id = event.id
                 try:
                     raw_data = event.data
-                    logging.info(f"TYPE: {type(raw_data)}")
-                    logging.info(f"READ: {raw_dataa}")
+                    logging.info(f"TYPE: {type(raw_data)} {raw_data}")
                     event_data = json.loads(raw_data)
 
                     assert "type" in event_data
