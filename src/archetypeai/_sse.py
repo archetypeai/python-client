@@ -82,7 +82,9 @@ class ServerSideEventsReader:
                 last_event_id = event.id
                 try:
                     raw_data = event.data
-                    event_data = json.loads(raw_data.decode("utf-8"))
+                    assert raw_data.startswith("b'")
+                    assert raw_data.endswith("'")
+                    event_data = json.loads(raw_data[2:-2])
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
