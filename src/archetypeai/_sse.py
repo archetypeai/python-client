@@ -86,7 +86,8 @@ class ServerSideEventsReader:
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
                     json_content = raw_data[1:]
-                    event_data = ast.literal_eval(json_content)
+                    event_data = json.loads(json_content)
+                    logging.info(f"DECODED: {event_data}")
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
