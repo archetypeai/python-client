@@ -84,7 +84,7 @@ class ServerSideEventsReader:
                     raw_data = event.data
                     assert raw_data.startswith("b'")
                     assert raw_data.endswith("'")
-                    json_content = raw_data[2:-2]
+                    json_content = raw_data[1:]
                     event_data = json.loads(json_content)
 
                     assert "type" in event_data
