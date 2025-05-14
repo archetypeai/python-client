@@ -81,7 +81,10 @@ class ServerSideEventsReader:
             for event in sse_event_reader:
                 last_event_id = event.id
                 try:
-                    event_data = json.loads(event.data)
+                    raw_data = event.data
+                    logging.info(f"TYPE: {type(raw_data)}")
+                    logging.info(f"READ: {raw_dataa}")
+                    event_data = json.loads(raw_data)
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
