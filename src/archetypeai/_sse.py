@@ -88,11 +88,11 @@ class ServerSideEventsReader:
                     # data, we need to strip the binary and single-quote identifiers to get back
                     # a cleaned string and then convert that to json.
                     raw_data = event.data
-                    assert raw_data.startswith("b'")
-                    assert raw_data.endswith("'")
-                    # Remove the outer binary and single quote tags.
-                    json_content = str(raw_data[1:]).replace("'", "") 
-                    event_data = json.loads(json_content)
+                    # assert raw_data.startswith("b'")
+                    # assert raw_data.endswith("'")
+                    # # Remove the outer binary and single quote tags.
+                    # json_content = str(raw_data[1:]).replace("'", "") 
+                    event_data = json.loads(raw_data)
 
                     assert "type" in event_data
                     self.read_event_queue.put(event_data)
