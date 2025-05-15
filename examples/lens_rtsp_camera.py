@@ -25,11 +25,22 @@ def session_fn(
     ) -> None:
     """Main function to run the logic of a custom lens session."""
 
+    # Adjust the focus of the lens.
+    event = {
+        "type": "session.modify",
+        "event_data": {
+            "focus": args.focus,
+            "max_new_tokens": args.max_new_tokens,
+        }
+    }
+    response = client.lens.sessions.process_event(session_id, event)
+    logging.info(f"response: \n {pformat(response, indent=4)}")
+
     # Attach an RTSP camera to the input of the lens.
     event = {
         "type": "input_stream.set",
         "event_data": {
-            "stream_type": "rtsp_video_streamer",
+            "stream_type": "rtsp_video_reader",
             "stream_config": {
                 "rtsp_url": args.rtsp_url,
                 "target_image_size": [360, 640],
@@ -40,14 +51,28 @@ def session_fn(
     response = client.lens.sessions.process_event(session_id, event)
     logging.info(f"response: \n {pformat(response, indent=4)}")
 
-    start_time = time.time()
-    while time.time() - start_time < args.max_run_time_sec:
-        # Read the latest logs from the lens.
-        event = {"type": "session.read", "event_data": {"client_id": client.get_client_id()}}
-        response = client.lens.sessions.process_event(session_id, event)
-        if response["event_data"] is not None:
-            event = response["event_data"]
-            logging.info(f"response: \n {pformat(event, indent=4)}")
+    # Attach a server-side events writer as output from the lens.
+    event = {
+        "type": "output_stream.set",
+        "event_data": {
+            "stream_type": "server_side_events_writer",
+            "stream_config": {},
+        }
+    }
+    response = client.lens.sessions.process_event(session_id, event)
+    logging.info(f"response: \n {pformat(response, indent=4)}")
+
+    # Create a SSE reader to read the output of the lens.
+    sse_reader = client.lens.sessions.create_sse_consumer(
+        session_id, max_read_time_sec=args.max_run_time_sec)
+
+    # Read events from the SSE stream until either the last message is
+    # received or the max read time has been reached.
+    for event in sse_reader.read(block=True):
+        logging.info(event)
+
+    # Close any active reader.
+    sse_reader.close()
 
 
 if __name__ == "__main__":
@@ -56,6 +81,8 @@ if __name__ == "__main__":
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
     parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199b2", type=str)
+    parser.add_argument("--focus", default="Describe the video.", type=str)
+    parser.add_argument("--max_new_tokens", default=256, type=int)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
     args = parser.parse_args()
     main(args)
