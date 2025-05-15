@@ -83,15 +83,7 @@ class ServerSideEventsReader:
             for event in sse_event_reader:
                 last_event_id = event.id
                 try:
-                    # The SSE stream encodes JSON data as utf-8 binary data which is then packed
-                    # into a standard string along with the SSE protocol headers. To decode the
-                    # data, we need to strip the binary and single-quote identifiers to get back
-                    # a cleaned string and then convert that to json.
                     raw_data = event.data
-                    # assert raw_data.startswith("b'")
-                    # assert raw_data.endswith("'")
-                    # # Remove the outer binary and single quote tags.
-                    # json_content = str(raw_data[1:]).replace("'", "") 
                     event_data = json.loads(raw_data)
 
                     assert "type" in event_data
@@ -108,8 +100,7 @@ class ServerSideEventsReader:
                         self.continue_worker_loop = False
                         break
                 except Exception as exception:
-                    logging.exception(f"Failed to parse JSON packet: {raw_data}")
-                
+                    logging.debug(f"Failed to parse JSON packet: {raw_data}")
 
         current_time = time.time()
         run_time = current_time - start_time
