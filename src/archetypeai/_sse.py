@@ -70,6 +70,7 @@ class ServerSideEventsReader:
                 time.sleep(restart_delay_sec)
                 restart_delay_sec = max(restart_delay_sec * 2, 10)
         self.continue_worker_loop = False
+        self.worker = None
 
     def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float, last_event_id: int) -> int:
 
