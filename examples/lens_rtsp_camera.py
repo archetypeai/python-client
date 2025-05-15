@@ -44,7 +44,7 @@ def session_fn(
             "stream_config": {
                 "rtsp_url": args.rtsp_url,
                 "target_image_size": [360, 640],
-                "target_frame_rate_hz": 0.2
+                "target_frame_rate_hz": 1.0,
             }
         }
     }
