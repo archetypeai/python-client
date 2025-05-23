@@ -3,13 +3,9 @@
 #   python -m examples.lens_clone --api_key=<YOUR_API_KEY> --lens_id=<EXISTING_LENS_ID_TO_CLONE_FROM>
 import argparse
 import logging
-import yaml
 
 from archetypeai.api_client import ArchetypeAI
-
-def pformat(data: dict, prefix: str = ""):
-    yaml_string = yaml.dump(data, sort_keys=False, default_flow_style=False)
-    logging.info(f"{prefix}{yaml_string}")
+from archetypeai.utils import pformat
 
 
 def main(args):
@@ -18,12 +14,12 @@ def main(args):
 
     # Get the info about the existing lens we will clone from.
     origin_lens_metadata = client.lens.get_metadata(lens_id=args.lens_id)
-    pformat(prefix=f"Origin Lens:\n", data=origin_lens_metadata)
+    logging.info(pformat(prefix=f"Origin Lens:\n", data=origin_lens_metadata))
 
     # Clone an existing lens to create a unique copy of that lens.
     new_lens_metadata = client.lens.clone(args.lens_id)
     new_lens_id = new_lens_metadata["lens_id"]
-    pformat(prefix=f"New Lens:\n", data=new_lens_metadata)
+    logging.info(pformat(prefix=f"New Lens:\n", data=new_lens_metadata))
 
     # Customize the lens arguments.
     if args.lens_name:
@@ -35,7 +31,7 @@ def main(args):
 
     # Push the modified lens metadata back to the Archetype Platform.
     lens_metadata = client.lens.modify(new_lens_id, new_lens_metadata)
-    pformat(prefix=f"Customized Lens:\n", data=lens_metadata)
+    logging.info(pformat(prefix=f"Customized Lens:\n", data=lens_metadata))
 
 
 if __name__ == "__main__":
