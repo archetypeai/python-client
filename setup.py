@@ -19,6 +19,7 @@ setup(
         "websocket-client>=1.8.0",
         "kafka-python==2.0.4",
         "sseclient==0.0.27",
+        "pyyaml==6.0.2",
     ],
     include_package_data=True,
 )
