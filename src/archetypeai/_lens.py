@@ -192,6 +192,20 @@ class LensApi(ApiBase):
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "lens_id": lens_id}
         return self.requests_get(api_endpoint, params=params)
 
+    def clone(self, lens_id: str) -> dict:
+        """Clones an existing lens to create a new custom lens."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, "lens/clone")
+        data = {"lens_id": lens_id}
+        response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        return response
+
+    def modify(self, lens_id: str, lens_params: dict) -> dict:
+        """Modifies an existing lens and returns the results."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, "lens/modify")
+        data = {"lens_id": lens_id, **lens_params}
+        response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        return response
+
     def create_and_run_session(
         self,
         lens_id: str,
