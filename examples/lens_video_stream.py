@@ -31,8 +31,11 @@ def session_fn(
     event = {
         "type": "session.modify",
         "event_data": {
+            "instruction": args.instruction,
             "focus": args.focus,
             "max_new_tokens": args.max_new_tokens,
+            "camera_buffer_size": args.camera_buffer_size,
+            "camera_buffer_step_size": args.camera_buffer_step_size,
         }
     }
     response = client.lens.sessions.process_event(session_id, event)
@@ -44,8 +47,7 @@ def session_fn(
             "stream_type": "video_file_reader",
             "stream_config": {
                 "file_id": args.file_id,
-                "window_size": args.window_size, # How many frames per event.
-                "step_size": args.step_size,     # How many steps per window.
+                "step_size": args.step_size,     # How granular to step through the video.
             }
         }
     }
@@ -81,11 +83,13 @@ if __name__ == "__main__":
     parser.add_argument("--file_id", required=True, type=str)
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199b2", type=str)
+    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-bc608aa3fdf8b4f9", type=str)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
-    parser.add_argument("--window_size", default=1, type=int)
-    parser.add_argument("--step_size", default=1, type=int)
-    parser.add_argument("--focus", default="Describe the image.", type=str)
+    parser.add_argument("--step_size", default=30, type=int)
+    parser.add_argument("--camera_buffer_size", default=5, type=int)
+    parser.add_argument("--camera_buffer_step_size", default=5, type=int)
+    parser.add_argument("--instruction", default="Analyze the video with the following focus.", type=str)
+    parser.add_argument("--focus", default="Describe the actions in the video.", type=str)
     parser.add_argument("--max_new_tokens", default=256, type=int)
     args = parser.parse_args()
     main(args)
