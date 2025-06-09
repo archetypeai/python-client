@@ -8,7 +8,6 @@ from archetypeai._lens_session_socket import LensSessionSocket
 from archetypeai._sse import ServerSideEventsReader
 
 
-
 class SessionsApi(ApiBase):
     """Main class for handling all lens session API calls."""
 
