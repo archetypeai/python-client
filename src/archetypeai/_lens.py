@@ -112,6 +112,13 @@ class LensApi(ApiBase):
         params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard, "lens_id": lens_id}
         return self.requests_get(api_endpoint, params=params)
 
+    def register(self, lens_config: dict) -> dict:
+        """Registers a new lens with the Archetype AI platform."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, "lens/register")
+        data = {"lens_config": lens_config}
+        response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        return response
+
     def clone(self, lens_id: str) -> dict:
         """Clones an existing lens to create a new custom lens."""
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/clone")
