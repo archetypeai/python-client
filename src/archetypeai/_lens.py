@@ -133,7 +133,7 @@ class LensApi(ApiBase):
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
         return response
 
-    def delete(self, lens_id: strt) -> dict:
+    def delete(self, lens_id: str) -> dict:
         """Deletes an existing lens and returns the results."""
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/delete")
         data = {"lens_id": lens_id}
