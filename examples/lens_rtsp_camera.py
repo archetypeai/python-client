@@ -3,10 +3,10 @@
 #   python -m examples.lens_rtsp_camera --api_key=<YOUR_API_KEY> --rtsp_url=<YOUR_RTSP_URL>
 import argparse
 import logging
-from pprint import pformat
 import time
 
 from archetypeai.api_client import ArchetypeAI
+from archetypeai.utils import pformat
 
 
 def main(args):
@@ -34,7 +34,7 @@ def session_fn(
         }
     }
     response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response, indent=4)}")
+    logging.info(f"response: \n {pformat(response)}")
 
     # Attach an RTSP camera to the input of the lens.
     event = {
@@ -49,7 +49,7 @@ def session_fn(
         }
     }
     response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response, indent=4)}")
+    logging.info(f"response: \n {pformat(response)}")
 
     # Attach a server-side events writer as output from the lens.
     event = {
@@ -60,7 +60,7 @@ def session_fn(
         }
     }
     response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response, indent=4)}")
+    logging.info(f"response: \n {pformat(response)}")
 
     # Create a SSE reader to read the output of the lens.
     sse_reader = client.lens.sessions.create_sse_consumer(
