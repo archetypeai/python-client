@@ -3,9 +3,9 @@
 #   python -m examples.lens_status --api_key=<YOUR_API_KEY>
 import argparse
 import logging
-from pprint import pformat
 
 from archetypeai.api_client import ArchetypeAI
+from archetypeai.utils import pformat
 
 
 def main(args):
@@ -14,11 +14,11 @@ def main(args):
 
     # Query the high level info about all lenses.
     lens_info = client.lens.get_info()
-    logging.info(f"lens info: \n {pformat(lens_info, indent=4)}")
+    logging.info(f"lens info: \n {pformat(lens_info)}")
 
     # Query the metadata for each lenses.
     lens_metadata = client.lens.get_metadata()
-    logging.info(f"lens metadata: \n {pformat(lens_metadata, indent=4)}")
+    logging.info(f"lens metadata: \n {pformat(lens_metadata)}")
 
     # Query the high level info about all lens sessions.
     session_info = client.lens.sessions.get_info()
