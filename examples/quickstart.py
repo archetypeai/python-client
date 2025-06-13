@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str, help="Set your Archetype API key")
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str, help="Set the API endpoint")
-    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199c9", type=str, help="Set the lens ID")
+    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-bc608aa3fdf8b4f9", type=str, help="Set the lens ID")
     parser.add_argument("--filename", required=True, type=str, help="Set the local filename")
     parser.add_argument("--focus", default="Describe the image.", type=str, help="Set the focus of the lens")
     parser.add_argument("--max_new_tokens", default=256, type=int, help="set the max new")
