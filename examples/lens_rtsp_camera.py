@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument("--rtsp_url", required=True, type=str)
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199b2", type=str)
+    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-bc608aa3fdf8b4f9", type=str)
     parser.add_argument("--focus", default="Describe the video.", type=str)
     parser.add_argument("--max_new_tokens", default=256, type=int)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
