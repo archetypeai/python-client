@@ -102,7 +102,7 @@ class ApiBase:
             '.jpeg': 'image/jpeg',
             '.mp4': 'video/mp4',
             '.json': 'plain/text',
-            '.csv': 'plain/text',
+            '.csv': 'text/csv',
             '.text': 'plain/text',
         }
         if file_ext in file_ext_mapper:
