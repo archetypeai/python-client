@@ -133,17 +133,9 @@ def main(api_key, file_path, normal_file_path, anomaly_file_path, data_columns):
     logging.info("="*60)
     logging.info("STARTING EVENT PROCESSING...")
     logging.info("="*60)
-    
-    start_time = time.time()
-    
-    first_iteration = True
 
     try:
         for event in sse_reader.read(block=True):
-            if first_iteration == True:
-                time.sleep(0.1)
-                first_iteration = False
-            
             try:
                 data = event
                 
