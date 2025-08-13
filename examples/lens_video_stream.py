@@ -27,6 +27,17 @@ def session_fn(
     ) -> None:
     """Main function to run the logic of a custom lens session."""
 
+    # Attach a server-side events writer as output from the lens.
+    event = {
+        "type": "output_stream.set",
+        "event_data": {
+            "stream_type": "server_side_events_writer",
+            "stream_config": {},
+        }
+    }
+    response = client.lens.sessions.process_event(session_id, event)
+    logging.info(f"response: \n {pformat(response, indent=4)}")
+
     # Adjust the focus of the lens.
     event = {
         "type": "session.modify",
@@ -49,17 +60,6 @@ def session_fn(
                 "file_id": args.file_id,
                 "step_size": args.step_size,     # How granular to step through the video.
             }
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response, indent=4)}")
-
-    # Attach a server-side events writer as output from the lens.
-    event = {
-        "type": "output_stream.set",
-        "event_data": {
-            "stream_type": "server_side_events_writer",
-            "stream_config": {},
         }
     }
     response = client.lens.sessions.process_event(session_id, event)
