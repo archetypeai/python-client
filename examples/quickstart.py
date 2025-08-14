@@ -1,4 +1,4 @@
-# An example that demonstrates how to hook up a video and stream it to a lens.
+# An example that demonstrates how to hook up a video and stream it to a custom lens.
 # usage:
 #   python -m examples.quickstart --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
 import argparse
@@ -14,7 +14,12 @@ def main(args):
     # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Define a custom lens.
+    # Upload the video file to the archetype platform.
+    response_data = client.files.local.upload(args.filename)
+    assert "file_id" in response_data, response_data
+    file_id = response_data["file_id"]
+
+    # Define a custom lens that reads from a video and writes to an SSE stream.
     lens_config = f"""
        lens_name: Custom Activity Monitor
        lens_config:
@@ -25,6 +30,13 @@ def main(args):
             max_new_tokens: {args.max_new_tokens}
             camera_buffer_size: {args.camera_buffer_size}
             camera_buffer_step_size: {args.camera_buffer_step_size}
+        input_streams:
+            - stream_type: video_file_reader
+              stream_config:
+                file_id: {file_id}
+                step_size: {args.step_size}
+        output_streams:
+            - stream_type: server_side_events_writer
     """
     lens_config = yaml.safe_load(lens_config)
     logging.info(f"Lens config:\n{pformat(lens_config)}")
@@ -48,50 +60,6 @@ def session_fn(
         args: dict
     ) -> None:
     """Main function to run the logic of a custom lens session."""
-
-    # Upload the video file to the archetype platform.
-    response_data = client.files.local.upload(args.filename)
-    assert "file_id" in response_data, response_data
-    file_id = response_data["file_id"]
-
-    # Adjust the focus of the lens.
-    event = {
-        "type": "session.modify",
-        "event_data": {
-            "instruction": args.instruction,
-            "focus": args.focus,
-            "max_new_tokens": args.max_new_tokens,
-            "camera_buffer_size": args.camera_buffer_size,
-            "camera_buffer_step_size": args.camera_buffer_step_size,
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    assert response["event_data"]["is_valid"], response
-
-    # Attach an output stream using the ServerSideEvents protocol so we can recieve real-time outputs from the lens.
-    event = {
-        "type": "output_stream.set",
-        "event_data": {
-            "stream_type": "server_side_events_writer",
-            "stream_config": {},
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    assert response["event_data"]["is_valid"], response
-
-    # Lastly, attach the an input stream to start recording data from a video file reader as input to the lens.
-    event = {
-        "type": "input_stream.set",
-        "event_data": {
-            "stream_type": "video_file_reader",
-            "stream_config": {
-                "file_id": file_id,
-                "step_size": args.step_size,     # How granular to step through the video.
-            }
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    assert response["event_data"]["is_valid"], response
 
     # Create a SSE reader to read the output of the lens.
     sse_reader = client.lens.sessions.create_sse_consumer(
