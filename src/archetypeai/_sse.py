@@ -74,7 +74,7 @@ class ServerSideEventsReader:
 
     def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float, last_event_id: int) -> int:
 
-        logging.info(f"[sse reader] Connecting to {session_endpoint})
+        logging.info(f"[sse reader] Connecting to {session_endpoint}")
         headers = {**header, "Accept": "text/event-stream"}
         if last_event_id:
             headers["Last-Event-ID"] = last_event_id
