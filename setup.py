@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="archetypeai",
-    version="25.06.09",
+    version="25.08.14",
     author="Archetype AI",
     url="https://github.com/archetypeai/python-client",
     description="The official python client for the Archetype AI API.",
@@ -18,7 +18,7 @@ setup(
         "websockets>=12.0",
         "websocket-client>=1.8.0",
         "kafka-python==2.0.4",
-        "sseclient==0.0.27",
+        "httpx-sse==0.4.1",
         "pyyaml==6.0.2",
     ],
     include_package_data=True,

@@ -6,8 +6,8 @@ import threading
 import time
 import ast
 
-from sseclient import SSEClient
-import requests
+import httpx
+from httpx_sse import connect_sse
 
 
 class ServerSideEventsReader:
@@ -74,33 +74,39 @@ class ServerSideEventsReader:
 
     def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float, last_event_id: int) -> int:
 
-        logging.info(f"[sse reader] Connecting to {session_endpoint}")
-        sse_event_reader = SSEClient(session_endpoint, headers=header, last_id=last_event_id)
-    
+        logging.info(f"[sse reader] Connecting to {session_endpoint})
+        headers = {**header, "Accept": "text/event-stream"}
+        if last_event_id:
+            headers["Last-Event-ID"] = last_event_id
         num_events_read = 0
-        while self.continue_worker_loop:
-            # Try and read any SSE events, this will block until an event is received.
-            for event in sse_event_reader:
-                last_event_id = event.id
-                try:
-                    raw_data = event.data
-                    event_data = json.loads(raw_data)
+        with httpx.Client() as client:
+            with connect_sse(client, "GET", session_endpoint, headers=headers, timeout=10.0) as event_source:
+    
+                while self.continue_worker_loop:
+                    # Try and read any SSE events, this will block until an event is received.
+                    for event in event_source.iter_sse():
+                        assert event.event == "message", event
+                        last_event_id = event.id
+                        try:
+                            raw_data = event.data
+                            logging.info(f"GOT EVENT {event}")
+                            event_data = json.loads(raw_data)
 
-                    assert "type" in event_data
-                    self.read_event_queue.put(event_data)
-                    num_events_read += 1
-                    if event_data["type"] == "sse.stream.heartbeat":
-                        # Break from the reader loop to check to ensure the worker is still alive.
-                        break
-                    if event_data["type"] == "sse.stream.end":
-                        # Cancel the worker loop so the thread will gracefully stop.
-                        self.continue_worker_loop = False
-                        break
-                    if self.max_read_time_sec >= 0 and time.time() - start_time >= self.max_read_time_sec:
-                        self.continue_worker_loop = False
-                        break
-                except Exception as exception:
-                    logging.debug(f"Failed to parse JSON packet: {raw_data}")
+                            assert "type" in event_data, event
+                            self.read_event_queue.put(event_data)
+                            num_events_read += 1
+                            if event_data["type"] == "sse.stream.heartbeat":
+                                # Break from the reader loop to check to ensure the worker is still alive.
+                                break
+                            if event_data["type"] == "sse.stream.end":
+                                # Cancel the worker loop so the thread will gracefully stop.
+                                self.continue_worker_loop = False
+                                break
+                            if self.max_read_time_sec >= 0 and time.time() - start_time >= self.max_read_time_sec:
+                                self.continue_worker_loop = False
+                                break
+                        except Exception as exception:
+                            logging.debug(f"Failed to parse JSON packet: {event}")
 
         current_time = time.time()
         run_time = current_time - start_time
