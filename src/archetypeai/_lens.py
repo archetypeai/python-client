@@ -117,6 +117,8 @@ class LensApi(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/register")
         data = {"lens_config": lens_config}
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        lens_id = response.get("lens_id", None)
+        assert lens_id, f"Missing lens_id: {response}"
         return response
 
     def clone(self, lens_id: str) -> dict:
@@ -124,6 +126,8 @@ class LensApi(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "lens/clone")
         data = {"lens_id": lens_id}
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
+        lens_id = response.get("lens_id", None)
+        assert lens_id, f"Missing lens_id: {response}"
         return response
 
     def modify(self, lens_id: str, lens_params: dict) -> dict:
