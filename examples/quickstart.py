@@ -3,6 +3,7 @@
 #   python -m examples.quickstart --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
 import argparse
 import logging
+import sys
 
 import yaml
 
@@ -15,12 +16,10 @@ def main(args):
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
     # Upload the video file to the archetype platform.
-    response_data = client.files.local.upload(args.filename)
-    assert "file_id" in response_data, response_data
-    file_id = response_data["file_id"]
+    file_response = client.files.local.upload(args.filename)
 
     # Define a custom lens that reads from a video and writes to an SSE stream.
-    lens_config = f"""
+    lens_config = yaml.safe_load(f"""
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
@@ -33,25 +32,22 @@ def main(args):
         input_streams:
             - stream_type: video_file_reader
               stream_config:
-                file_id: {file_id}
+                file_id: {file_response['file_id']}
                 step_size: {args.step_size}
         output_streams:
             - stream_type: server_side_events_writer
-    """
-    lens_config = yaml.safe_load(lens_config)
+    """)
     logging.info(f"Lens config:\n{pformat(lens_config)}")
 
     # Register the custom lens with the Archetype AI platform.
     lens_metadata = client.lens.register(lens_config)
-    lens_id = lens_metadata.get("lens_id", None)
-    assert lens_id, f"Missing lens_id: {lens_metadata}"
 
     # Create and run a new session, using the session function below.
     client.lens.create_and_run_session(
-        lens_id, session_fn, auto_destroy=True, client=client, args=args)
+        lens_metadata["lens_id"], session_fn, auto_destroy=True, client=client, args=args)
 
     # Delete the custom lens to clean things up.
-    client.lens.delete(lens_id)
+    client.lens.delete(lens_metadata["lens_id"])
 
 def session_fn(
         session_id: str,
@@ -68,7 +64,7 @@ def session_fn(
     # Read events from the SSE stream until either the last message is
     # received or the max read time has been reached.
     for event in sse_reader.read(block=True):
-        logging.info(event)
+        logging.info(f"[sse_reader] {event}")
 
     # Close any active reader.
     sse_reader.close()
@@ -86,7 +82,9 @@ if __name__ == "__main__":
     parser.add_argument("--camera_buffer_size", default=5, type=int)
     parser.add_argument("--camera_buffer_step_size", default=5, type=int)
     parser.add_argument("--max_new_tokens", default=256, type=int)
+    parser.add_argument("--logging_level", default=logging.INFO, type=str)
     args = parser.parse_args()
+    logging.basicConfig(level=args.logging_level, format="[%(asctime)s] %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
 
     # Validate the input.
     assert args.filename.endswith(".mp4"), "Enter an .mp4 video file"
