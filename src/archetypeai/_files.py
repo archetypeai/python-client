@@ -39,9 +39,11 @@ class LocalFilesApi(FilesApiBase):
     def upload(self, filename: str, base64_data: Union[str, None] = None) -> dict:
         """Uploads a local file to the Archetype AI platform."""
         if base64_data is None:
-            return self._upload_file(filename)
+            response = self._upload_file(filename)
         else:
-            return self._upload_base64_data(filename, base64_data)
+            response = self._upload_base64_data(filename, base64_data)
+        assert "file_id" in response, response
+        return response
         
     def _upload_file(self, filename: str) -> dict:
         api_endpoint = self._get_endpoint(self.api_endpoint, "files")
