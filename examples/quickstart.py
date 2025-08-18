@@ -5,11 +5,7 @@ import argparse
 import logging
 import sys
 
-import yaml
-
 from archetypeai.api_client import ArchetypeAI
-from archetypeai.utils import pformat
-
 
 def main(args):
     # Create a new client using your unique API key.
@@ -18,14 +14,15 @@ def main(args):
     # Upload the video file to the archetype platform.
     file_response = client.files.local.upload(args.filename)
 
-    # Define a custom lens that reads from a video and writes to an SSE stream.
-    lens_config = yaml.safe_load(f"""
+    # Create a custom lens and automatically launch the lens session.
+    client.lens.create_and_run_lens(f"""
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
             model_version: Newton::c2_1_250408d4362cc9
             instruction: {args.instruction}
             focus: {args.focus}
+            temporal_focus: 5
             max_new_tokens: {args.max_new_tokens}
             camera_buffer_size: {args.camera_buffer_size}
             camera_buffer_step_size: {args.camera_buffer_step_size}
@@ -36,18 +33,7 @@ def main(args):
                 step_size: {args.step_size}
         output_streams:
             - stream_type: server_side_events_writer
-    """)
-    logging.info(f"Lens config:\n{pformat(lens_config)}")
-
-    # Register the custom lens with the Archetype AI platform.
-    lens_metadata = client.lens.register(lens_config)
-
-    # Create and run a new session, using the session function below.
-    client.lens.create_and_run_session(
-        lens_metadata["lens_id"], session_fn, auto_destroy=True, client=client, args=args)
-
-    # Delete the custom lens to clean things up.
-    client.lens.delete(lens_metadata["lens_id"])
+    """, session_fn, client=client, args=args)
 
 def session_fn(
         session_id: str,
