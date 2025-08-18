@@ -3,6 +3,8 @@ import json
 import logging
 import time
 
+import yaml
+
 from archetypeai._base import ApiBase
 from archetypeai._lens_session_socket import LensSessionSocket
 from archetypeai._sse import ServerSideEventsReader
