@@ -151,6 +151,7 @@ class LensApi(ApiBase):
         auto_destroy: bool = True,
         **session_kwargs
         ):
+        """Creates and runs a lens session."""
         # Create a new session based on this lens.
         session_id, session_endpoint = self.create_session(lens_id)
 
