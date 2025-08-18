@@ -144,6 +144,35 @@ class LensApi(ApiBase):
         response = self.requests_post(api_endpoint, data_payload=json.dumps(data))
         return response
 
+    def create_and_run_lens(
+        self,
+        lens_config: str | dict,
+        session_fn: Callable,
+        auto_destroy_lens: bool = True,
+        auto_destroy_session: bool = True,
+        **session_kwargs
+        ):
+        """Creates a new lens and automatically launches a new lens session."""
+
+        # If the lens is passed as a str then dynamically convert it to a dict.
+        if isinstance(lens_config, str):
+            lens_config = yaml.safe_load(lens_config)
+        assert isinstance(lens_config, dict), f"Invalid input: {lens_config}"
+
+        # Register the custom lens with the Archetype AI platform.
+        lens_metadata = client.lens.register(lens_config)
+        assert "lens_id" in lens_metadata, f"Missing lens id: {lens_metadata}"
+        lens_id = lens_metadata["lens_id"]
+
+        fn_response = self.create_and_run_session(
+            lens_id, session_fn, auto_destroy=auto_destroy_session, **session_kwargs)
+
+        if auto_destroy_lens:
+            # Delete the custom lens to clean things up.
+            client.lens.delete(lens_id)
+
+        return fn_response
+
     def create_and_run_session(
         self,
         lens_id: str,
@@ -151,7 +180,7 @@ class LensApi(ApiBase):
         auto_destroy: bool = True,
         **session_kwargs
         ):
-        """Creates and runs a lens session."""
+        """Creates and runs a lens session based on a pre-existing lens."""
         # Create a new session based on this lens.
         session_id, session_endpoint = self.create_session(lens_id)
 
