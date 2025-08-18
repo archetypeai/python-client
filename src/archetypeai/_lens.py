@@ -162,7 +162,7 @@ class LensApi(ApiBase):
         assert isinstance(lens_config, dict), f"Invalid input: {lens_config}"
 
         # Register the custom lens with the Archetype AI platform.
-        lens_metadata = client.lens.register(lens_config)
+        lens_metadata = self.lens.register(lens_config)
         assert "lens_id" in lens_metadata, f"Missing lens id: {lens_metadata}"
         lens_id = lens_metadata["lens_id"]
 
@@ -171,7 +171,7 @@ class LensApi(ApiBase):
 
         if auto_destroy_lens:
             # Delete the custom lens to clean things up.
-            client.lens.delete(lens_id)
+            self.lens.delete(lens_id)
 
         return fn_response
 
