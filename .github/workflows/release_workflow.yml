@@ -1,4 +1,4 @@
-name: "Upload Python Package"
+name: Upload Python Package
 
 on:
   release:
@@ -31,7 +31,3 @@ jobs:
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # The package will be uploaded from the default dist/ folder;
-          # for a custom packages directory, use:
-          # packages-dir: ./dist/
