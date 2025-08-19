@@ -1,0 +1,28 @@
+[build-system]
+requires = ["pdm-backend >= 2.4.0"]
+build-backend = "pdm.backend"
+
+[project]
+name = "archetypeai"
+dynamic = ["version"]
+requires-python = ">= 3.8"
+author = "Archetype AI"
+description = "The official python client for the Archetype AI API."
+readme = "README.md"
+license = "Apache-2.0"
+keywords = ["physical ai", "newton]
+dependencies = [
+    "argparse>=1.4.0",
+    "typing-extensions>=4.8.0",
+    "requests>=2.31.0",
+    "requests-toolbelt>=1.0.0",
+    "websockets>=12.0",
+    "websocket-client>=1.8.0",
+    "kafka-python==2.0.4",
+    "httpx-sse==0.4.1",
+    "pyyaml==6.0.2",
+]
+
+[project.urls]
+Homepage = "https://www.archetypeai.io"
+Repository = "https://github.com/archetypeai/python-client"
