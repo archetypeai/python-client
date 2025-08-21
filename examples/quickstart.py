@@ -1,4 +1,4 @@
-# An example that demonstrates how to hook up a video and stream it to a custom lens.
+# An example that demonstrates how to hook up a video and stream it through a custom lens.
 # usage:
 #   python -m examples.quickstart --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
 import argparse
@@ -32,10 +32,10 @@ def main(args):
                 file_id: {file_response['file_id']}
                 step_size: {args.step_size}
         output_streams:
-            - stream_type: server_side_events_writer
-    """, session_fn, client=client, args=args)
+            - stream_type: server_sent_events_writer
+    """, session_callback, client=client, args=args)
 
-def session_fn(
+def session_callback(
         session_id: str,
         session_endpoint: str,
         client: ArchetypeAI,
