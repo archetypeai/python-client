@@ -94,7 +94,7 @@ class ApiBase:
         return api_endpoint
 
     def get_file_type(self, filename: str) -> str:
-        """Returns the file type of the input filename."""
+        """Returns the file type of the input filename or raises an error."""
         file_ext = Path(filename).suffix.lower()
         file_ext_mapper = {
             '.png': 'image/png',
