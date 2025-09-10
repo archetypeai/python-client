@@ -19,13 +19,11 @@ def main(args):
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
-            model_version: Newton::c2_1_250408d4362cc9
+            model_version: Newton::c2_3_7b_2508014e10af56
             instruction: {args.instruction}
             focus: {args.focus}
             temporal_focus: 5
             max_new_tokens: {args.max_new_tokens}
-            camera_buffer_size: {args.camera_buffer_size}
-            camera_buffer_step_size: {args.camera_buffer_step_size}
         input_streams:
             - stream_type: video_file_reader
               stream_config:
@@ -65,8 +63,6 @@ if __name__ == "__main__":
     parser.add_argument("--focus", default="Describe the actions in the video.", type=str)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
     parser.add_argument("--step_size", default=30, type=int)
-    parser.add_argument("--camera_buffer_size", default=5, type=int)
-    parser.add_argument("--camera_buffer_step_size", default=5, type=int)
     parser.add_argument("--max_new_tokens", default=256, type=int)
     parser.add_argument("--logging_level", default=logging.INFO, type=str)
     args = parser.parse_args()
