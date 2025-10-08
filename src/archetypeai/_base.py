@@ -6,7 +6,6 @@ import sys
 import secrets
 
 import requests
-from requests_toolbelt import MultipartEncoder
 
 from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
 
