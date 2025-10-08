@@ -6,7 +6,6 @@ import sys
 import secrets
 
 import requests
-from requests_toolbelt import MultipartEncoder
 
 from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
 
@@ -21,6 +20,7 @@ class ApiBase:
                  log_level: int = logging.INFO,
                  log_format: str = "[%(asctime)s] %(message)s",
                  client_id: str = "",
+                 request_timeout_sec: int = 10,
                  ) -> None:
         self.api_key = api_key
         self.api_endpoint = api_endpoint
@@ -28,6 +28,7 @@ class ApiBase:
         self.num_retries = num_retries
         self.valid_response_codes = (200, 201)
         self.client_id = client_id if client_id else secrets.token_hex(8)  # Generate a uid for this client.
+        self.request_timeout_sec = request_timeout_sec
         logging.basicConfig(level=log_level, format=log_format, datefmt="%H:%M:%S", stream=sys.stdout)
     
     def requests_get(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
@@ -43,7 +44,11 @@ class ApiBase:
         return self._execute_request(request_func=self._requests_post, request_args=request_args)
 
     def _requests_post(self, api_endpoint: str, data_payload: bytes, additional_headers: dict = {}) -> Tuple[int, dict]:
-        response = requests.post(api_endpoint, data=data_payload, headers={**self.auth_headers, **additional_headers})
+        response = requests.post(
+            api_endpoint,
+            data=data_payload,
+            headers={**self.auth_headers, **additional_headers},
+            timeout=self.request_timeout_sec)
         return response.status_code, safely_extract_response_data(response)
 
     def requests_delete(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
@@ -59,7 +64,11 @@ class ApiBase:
         return self._execute_request(request_func=self._requests_download, request_args=request_args)
 
     def _requests_download(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> Tuple[int, requests.Response]:
-        response = requests.get(api_endpoint, params=params, headers={**self.auth_headers, **additional_headers})
+        response = requests.get(
+            api_endpoint,
+            params=params,
+            headers={**self.auth_headers, **additional_headers},
+            timeout=self.request_timeout_sec)
         if response.status_code != 200:
             logging.warning(f"Failed to download file: {api_endpoint}. Error: {response}")
         return response.status_code, response
@@ -70,7 +79,7 @@ class ApiBase:
             response_code, response_data = request_func(**request_args)
             if response_code in self.valid_response_codes:
                 return response_data
-            logging.info(f"Failed to get valid response with args {request_args}, got {response_code} {response_data} retrying...")
+            logging.info(f"Failed to get valid response, got {response_code} {response_data} retrying...")
             num_attempts += 1
             if num_attempts >= self.num_retries:
                 error_msg = f"Request failed after {num_attempts} attempts with error: {response_code} {response_data}"
