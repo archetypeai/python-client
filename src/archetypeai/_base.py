@@ -101,10 +101,10 @@ class ApiBase:
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
             '.mp4': 'video/mp4',
-            '.json': 'plain/text',
+            '.json': 'text/plain',
             '.csv': 'text/csv',
-            '.txt': 'plain/text',
-            '.text': 'plain/text',
+            '.txt': 'text/plain',
+            '.text': 'text/plain',
         }
         if file_ext in file_ext_mapper:
             return file_ext_mapper[file_ext]
