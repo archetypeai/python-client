@@ -15,12 +15,12 @@ class ApiBase:
 
     def __init__(self,
                  api_key: str,
+                 request_timeout_sec: Optional[int],
                  api_endpoint: str = DEFAULT_ENDPOINT,
                  num_retries: int = 3,
                  log_level: int = logging.INFO,
                  log_format: str = "[%(asctime)s] %(message)s",
                  client_id: str = "",
-                 request_timeout_sec: Optional[int],
                  ) -> None:
         self.api_key = api_key
         self.api_endpoint = api_endpoint
