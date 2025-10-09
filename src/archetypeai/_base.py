@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import logging
 from pathlib import Path
@@ -20,7 +20,7 @@ class ApiBase:
                  log_level: int = logging.INFO,
                  log_format: str = "[%(asctime)s] %(message)s",
                  client_id: str = "",
-                 request_timeout_sec: int = 10,
+                 request_timeout_sec: Optional[int],
                  ) -> None:
         self.api_key = api_key
         self.api_endpoint = api_endpoint
