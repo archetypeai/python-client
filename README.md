@@ -11,7 +11,7 @@ As a best practice, we recomend using a virtual environment such as Conda.
 
 You can install the Archetype AI python client via pip:
 ```bash
-python pip archetypeai
+pip install archetypeai
 ```
 
 ## Build From Source
