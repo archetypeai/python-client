@@ -13,8 +13,9 @@ from httpx_sse import connect_sse
 class ServerSideEventsReader:
     """Manages a threaded SSE reader."""
 
-    def __init__(self, session_endpoint: str, header: dict, max_read_time_sec: float = -1.0):
+    def __init__(self, session_endpoint: str, header: dict, max_read_time_sec: float = -1.0, max_retries: int = 3):
         self.max_read_time_sec = max_read_time_sec
+        self.max_retries = max_retries
         self.heartbeat_sec = 30
         self.continue_worker_loop = False
         self.read_event_queue = Queue()
@@ -60,18 +61,26 @@ class ServerSideEventsReader:
     def _worker(self, session_endpoint: str, header: dict) -> None:
         self.continue_worker_loop = True
         restart_delay_sec = 1
+        num_retries = 0
         start_time = time.time()
         while self.continue_worker_loop:
             try:
-                self._run_worker_loop(session_endpoint, header, start_time)
+                success = self._run_worker_loop(session_endpoint, header, start_time)
+                if success:
+                    num_retries = 0
             except Exception as exception:
-                logging.exception("Failed to run reader loop - restarting...")
-                time.sleep(restart_delay_sec)
-                restart_delay_sec = max(restart_delay_sec * 2, 10)
+                num_retries += 1
+                if num_retries <= self.max_retries:
+                    logging.exception("Failed to run reader loop - restarting...")
+                    time.sleep(restart_delay_sec)
+                    restart_delay_sec = max(restart_delay_sec * 2, 10)
+                else:
+                    logging.exception("Failed to run reader loop - reached max retries, stopping...")
+                    self.continue_worker_loop = False
         self.continue_worker_loop = False
         self.worker = None
 
-    def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float) -> None:
+    def _run_worker_loop(self, session_endpoint: str, header: dict, start_time: float) -> bool:
         """Connects to and reads events from an SSE remote connection until instructed to stop."""
         logging.info(f"[sse reader] Connecting to {session_endpoint}")
         headers = {**header, "Accept": "text/event-stream"}
