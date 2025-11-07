@@ -28,7 +28,6 @@ def main(args):
             - stream_type: video_file_reader
               stream_config:
                 file_id: {file_response['file_id']}
-                step_size: {args.step_size}
         output_streams:
             - stream_type: server_sent_events_writer
     """, session_callback, client=client, args=args)

@@ -19,9 +19,7 @@ class SessionsApi(ApiBase):
         super().__init__(api_key, api_endpoint)
 
     def __del__(self):
-        for session_id in self.session_socket_cache:
-            self.session_socket_cache[session_id].close()
-        self.session_socket_cache = {}
+        self.close()
 
     def get_info(self) -> dict:
         """Gets the high-level info for all lens sessions across your org."""
@@ -87,6 +85,16 @@ class SessionsApi(ApiBase):
         headers = {"Authorization":f"Bearer {self.api_key}"}
         sse_consumer = ServerSideEventsReader(api_endpoint, headers, max_read_time_sec)
         return sse_consumer
+    
+    def close(self) -> bool:
+        """Closes and removes any open session socket. Returns true if any sessions were closed, false otherwise."""
+        sessions_closed = False
+        if self.session_socket_cache:
+            for session_id in self.session_socket_cache:
+                self.session_socket_cache[session_id].close()
+            self.session_socket_cache = {}
+            sessions_closed = True
+        return sessions_closed 
 
 
 class LensApi(ApiBase):
@@ -217,6 +225,12 @@ class LensApi(ApiBase):
 
     def destroy_lens_session(self, session_id: str) -> None:
         """Cleanly stops and destroys an active session."""
-        response = self.sessions.destroy(session_id)
-        logging.debug(response)
-        logging.info(f"Session Status: {response['session_status']}")
+        try:
+            # Destroy any active sessions.
+            response = self.sessions.destroy(session_id)
+            logging.debug(response)
+            logging.info(f"Session Status: {response['session_status']}")
+        except:
+            logging.exception("Failed to destroy sessions!")
+        # Close any open sessions sockets.
+        self.sessions.close()
