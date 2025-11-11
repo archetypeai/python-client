@@ -111,6 +111,7 @@ class ApiBase:
             '.jpeg': 'image/jpeg',
             '.mp4': 'video/mp4',
             '.json': 'text/plain',
+            '.jsonl': 'text/plain',
             '.csv': 'text/csv',
             '.txt': 'text/plain',
             '.text': 'text/plain',
