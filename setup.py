@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="archetypeai",
-    version="25.11.04",
+    version="25.11.11",
     author="Archetype AI",
     url="https://github.com/archetypeai/python-client",
     description="The official python client for the Archetype AI API.",
