@@ -2,6 +2,7 @@ from archetypeai.__init__ import __version__
 from archetypeai._base import ApiBase
 from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
+from archetypeai._errors import ApiError as ApiError
 from archetypeai._files import FilesApi
 from archetypeai._messaging import MessagingApi
 from archetypeai._sensors import SensorsApi
