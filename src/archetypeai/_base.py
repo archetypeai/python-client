@@ -8,6 +8,7 @@ import secrets
 import requests
 
 from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
+from archetypeai._errors import ApiError
 
 
 class ApiBase:
@@ -22,11 +23,13 @@ class ApiBase:
                  client_id: str = "",
                  request_timeout_sec: Optional[int] = None,
                  ) -> None:
+        logging.info(f"request_timeout_sec: {request_timeout_sec}")
         self.api_key = api_key
         self.api_endpoint = api_endpoint
         self.auth_headers = {"Authorization": f"Bearer {self.api_key}"}
         self.num_retries = num_retries
         self.valid_response_codes = (200, 201)
+        self.invalid_response_codes = [error_code for error_code in range(400, 417)]
         self.client_id = client_id if client_id else secrets.token_hex(8)  # Generate a uid for this client.
         self.request_timeout_sec = request_timeout_sec
         logging.basicConfig(level=log_level, format=log_format, datefmt="%H:%M:%S", stream=sys.stdout)
@@ -79,7 +82,9 @@ class ApiBase:
             response_code, response_data = request_func(**request_args)
             if response_code in self.valid_response_codes:
                 return response_data
-            logging.info(f"Failed to get valid response, got {response_code} {response_data} retrying...")
+            if response_code in self.invalid_response_codes:
+                raise ApiError(response_data)
+            logging.warning(f"Failed to get valid response, got {response_code} {response_data} retrying...")
             num_attempts += 1
             if num_attempts >= self.num_retries:
                 error_msg = f"Request failed after {num_attempts} attempts with error: {response_code} {response_data}"
