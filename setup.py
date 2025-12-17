@@ -1,8 +1,19 @@
+import re
+import ast
 from setuptools import setup, find_packages
+
+# Dynamically extract the library version from the client.
+_version_re = re.compile(r'_VERSION\s*=\s*(.*)')
+with open("src/archetypeai/api_client.py", 'rb') as f:
+    match = _version_re.search(f.read().decode('utf-8'))
+    if match:
+        version = str(ast.literal_eval(match.group(1)))
+    else:
+        raise RuntimeError("Unable to find version string.")
 
 setup(
     name="archetypeai",
-    version="25.12.17.1",
+    version=version,
     author="Archetype AI",
     url="https://github.com/archetypeai/python-client",
     description="The official python client for the Archetype AI API.",
