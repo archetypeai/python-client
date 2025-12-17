@@ -1,6 +1,6 @@
 import pytest
 
-from archetypeai.api_client import ArchetypeAI
+from archetypeai import ArchetypeAI
 
 def test_client_init():
     client = ArchetypeAI("fake_api_key")

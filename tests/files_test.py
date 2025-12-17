@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import pytest
 
-from archetypeai.api_client import ArchetypeAI, ApiError
+from archetypeai import ArchetypeAI, ApiError
 
 
 @pytest.fixture
