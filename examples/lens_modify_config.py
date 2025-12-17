@@ -1,22 +1,26 @@
-# An example that demonstrates how to fetch and modify the focus of a lens.
+# An example that demonstrates how to fetch and modify the focus of an active lens.
 # usage:
 #   python -m examples.lens_modify_config --api_key=<YOUR_API_KEY>
 import argparse
 import logging
-from pprint import pformat
 
-from archetypeai.api_client import ArchetypeAI
+from archetypeai import ArchetypeAI
 
 
 def main(args):
     # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Create and run a new session, using the session function below.
-    client.lens.create_and_run_session(
-        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+    # Create a custom lens with an initial focus of 'cars' and automatically launch the lens session.
+    client.lens.create_and_run_lens(f"""
+       lens_name: Custom Activity Monitor
+       lens_config:
+        model_parameters:
+            model_version: Newton::c2_3_7b_2508014e10af56
+            focus: cars
+    """, session_callback, client=client, args=args)
 
-def session_fn(
+def session_callback(
         session_id: str,
         session_endpoint: str,
         client: ArchetypeAI,
@@ -54,6 +58,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--api_key", required=True, type=str)
     parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-237ab3ffd79199b2", type=str)
     args = parser.parse_args()
     main(args)
