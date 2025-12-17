@@ -4,8 +4,7 @@
 import argparse
 import logging
 
-from archetypeai.api_client import ArchetypeAI
-from archetypeai.utils import pformat
+from archetypeai import ArchetypeAI, pformat
 
 
 def main(args):
