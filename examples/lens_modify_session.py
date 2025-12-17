@@ -13,7 +13,7 @@ def main(args):
 
     # Create a custom lens with an initial focus of 'cars' and automatically launch the lens session.
     client.lens.create_and_run_lens(f"""
-       lens_name: Custom Activity Monitor
+       lens_name: Example Lens
        lens_config:
         model_parameters:
             model_version: Newton::c2_3_7b_2508014e10af56
