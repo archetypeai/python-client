@@ -23,7 +23,6 @@ class ApiBase:
                  client_id: str = "",
                  request_timeout_sec: Optional[int] = None,
                  ) -> None:
-        logging.info(f"request_timeout_sec: {request_timeout_sec}")
         self.api_key = api_key
         self.api_endpoint = api_endpoint
         self.auth_headers = {"Authorization": f"Bearer {self.api_key}"}
