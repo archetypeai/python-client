@@ -1,6 +1,6 @@
-# An example that demonstrates how to fetch and modify the focus of an active lens.
+# An example that demonstrates how to fetch and modify the focus of an active lens session.
 # usage:
-#   python -m examples.lens_modify_config --api_key=<YOUR_API_KEY>
+#   python -m examples.lens_modify_session --api_key=<YOUR_API_KEY>
 import argparse
 import logging
 
