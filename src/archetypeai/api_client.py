@@ -1,4 +1,3 @@
-from archetypeai.__init__ import __version__
 from archetypeai._base import ApiBase
 from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
@@ -8,6 +7,8 @@ from archetypeai._messaging import MessagingApi
 from archetypeai._sensors import SensorsApi
 from archetypeai._lens import LensApi
 from archetypeai._kafka_client import KafkaApi
+
+_VERSION = "25.12.17.1"
 
 
 class ArchetypeAI(ApiBase):
@@ -23,7 +24,7 @@ class ArchetypeAI(ApiBase):
     @staticmethod
     def get_version() -> str:
         """Returns the current version of the Archetype client."""
-        return __version__
+        return _VERSION
     
     @staticmethod
     def get_default_endpoint() -> str:
