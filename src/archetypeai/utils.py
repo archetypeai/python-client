@@ -1,9 +1,12 @@
 from typing import Optional
 
+import argparse
 import base64
 import logging
 import yaml
 import sys
+
+from archetypeai._common import DEFAULT_ENDPOINT
 
 
 def base64_encode(filename: str) -> str:
@@ -19,6 +22,22 @@ def pformat(data: dict, prefix: str = "") -> str:
     return fomatted_string
 
 
-def configure_logging(level: Optional[int] = logging.INFO) -> None:
-    """Sets up the default logger."""
-    logging.basicConfig(level=level, format="[%(asctime)s] %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
+class ArgParser(argparse.ArgumentParser):
+    """Creates a custom arg parser with common ArchetypeAI args."""
+
+    def __init__(self):
+        super().__init__(self)
+        self.add_argument("--api_key", required=True, type=str, help="Your Archetype AI API key")
+        self.add_argument("--api_endpoint", default=DEFAULT_ENDPOINT, type=str, help="The target API endpoint")
+        self.add_argument("--logging_level", default=logging.INFO, type=str, help="Sets the logging level")
+
+    def parse_args(self, configure_logging: Optional[bool] = None) -> argparse.Namespace:
+        """Configures default logging using optional args."""
+        # Call the default arg parser.
+        args = super().parse_args()
+
+        # Add a basic logging config if enable.
+        if configure_logging:
+            logging.basicConfig(level=args.logging_level, format="[%(asctime)s] %(message)s", datefmt="%H:%M:%S", stream=sys.stdout)
+        
+        return args
