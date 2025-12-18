@@ -1,12 +1,10 @@
 # An example that demonstrates how to hook up a real-time RTSP camera to a lens.
 # usage:
 #   python -m examples.lens_rtsp_camera --api_key=<YOUR_API_KEY> --rtsp_url=<YOUR_RTSP_URL>
-import argparse
 import logging
 import time
 
-from archetypeai.api_client import ArchetypeAI
-from archetypeai.utils import pformat
+from archetypeai import ArchetypeAI, ArgParser, pformat
 
 
 def main(args):
@@ -76,13 +74,11 @@ def session_fn(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = ArgParser()
     parser.add_argument("--rtsp_url", required=True, type=str)
-    parser.add_argument("--api_key", required=True, type=str)
-    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
     parser.add_argument("--lens_id", default="lns-fd669361822b07e2-bc608aa3fdf8b4f9", type=str)
     parser.add_argument("--focus", default="Describe the video.", type=str)
     parser.add_argument("--max_new_tokens", default=256, type=int)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
-    args = parser.parse_args()
+    args = parser.parse_args(configure_logging=True)
     main(args)
