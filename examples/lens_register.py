@@ -1,13 +1,11 @@
 # An example that demonstrates how to define and register a custom lens.
 # usage:
 #   python -m examples.lens_register --api_key=<YOUR_API_KEY>
-import argparse
 import logging
 
 import yaml
 
-from archetypeai.api_client import ArchetypeAI
-from archetypeai.utils import pformat
+from archetypeai import ArchetypeAI, ArgParser, pformat
 
 
 def main(args):
@@ -40,8 +38,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--api_key", required=True, type=str)
-    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    args = parser.parse_args()
+    parser = ArgParser()
+    args = parser.parse_args(configure_logging=True)
     main(args)
