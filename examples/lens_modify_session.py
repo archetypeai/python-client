@@ -1,10 +1,9 @@
 # An example that demonstrates how to fetch and modify the focus of an active lens session.
 # usage:
 #   python -m examples.lens_modify_session --api_key=<YOUR_API_KEY>
-import argparse
 import logging
 
-from archetypeai import ArchetypeAI
+from archetypeai import ArchetypeAI, ArgParser
 
 
 def main(args):
@@ -55,8 +54,6 @@ def session_callback(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--api_key", required=True, type=str)
-    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    args = parser.parse_args()
+    parser = ArgParser()
+    args = parser.parse_args(configure_logging=True)
     main(args)
