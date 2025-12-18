@@ -1,3 +1,5 @@
+import logging
+
 from archetypeai._base import ApiBase
 from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
