@@ -11,54 +11,33 @@ def main(args):
     # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Create and run a new session, using the session function below.
-    client.lens.create_and_run_session(
-        args.lens_id, session_fn, auto_destroy=True, client=client, args=args)
+    # Create a custom lens and automatically launch the lens session.
+    client.lens.create_and_run_lens(f"""
+       lens_name: Custom Activity Monitor
+       lens_config:
+        model_parameters:
+            model_version: Newton::c2_3_7b_2508014e10af56
+            instruction: Monitor the real-time camera stream and describe the activites.
+            focus: human activity
+            temporal_focus: 5
+            max_new_tokens: 128
+        input_streams:
+            - stream_type: rtsp_video_reader
+              stream_config:
+                rtsp_url: {args.rtsp_url}
+                target_image_size: [360, 640]
+                target_frame_rate_hz: 1.0
+        output_streams:
+            - stream_type: server_sent_events_writer
+    """, session_callback, client=client, args=args)
 
-def session_fn(
+def session_callback(
         session_id: str,
         session_endpoint: str,
         client: ArchetypeAI,
         args: dict
     ) -> None:
     """Main function to run the logic of a custom lens session."""
-
-    # Adjust the focus of the lens.
-    event = {
-        "type": "session.modify",
-        "event_data": {
-            "focus": args.focus,
-            "max_new_tokens": args.max_new_tokens,
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response)}")
-
-    # Attach an RTSP camera to the input of the lens.
-    event = {
-        "type": "input_stream.set",
-        "event_data": {
-            "stream_type": "rtsp_video_reader",
-            "stream_config": {
-                "rtsp_url": args.rtsp_url,
-                "target_image_size": [360, 640],
-                "target_frame_rate_hz": 1.0,
-            }
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response)}")
-
-    # Attach a server-side events writer as output from the lens.
-    event = {
-        "type": "output_stream.set",
-        "event_data": {
-            "stream_type": "server_side_events_writer",
-            "stream_config": {},
-        }
-    }
-    response = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"response: \n {pformat(response)}")
 
     # Create a SSE reader to read the output of the lens.
     sse_reader = client.lens.sessions.create_sse_consumer(
@@ -76,9 +55,6 @@ def session_fn(
 if __name__ == "__main__":
     parser = ArgParser()
     parser.add_argument("--rtsp_url", required=True, type=str)
-    parser.add_argument("--lens_id", default="lns-fd669361822b07e2-bc608aa3fdf8b4f9", type=str)
-    parser.add_argument("--focus", default="Describe the video.", type=str)
-    parser.add_argument("--max_new_tokens", default=256, type=int)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
     args = parser.parse_args(configure_logging=True)
     main(args)
