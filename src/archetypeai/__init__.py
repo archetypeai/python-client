@@ -1,6 +1,6 @@
 from .api_client import ArchetypeAI
-from .utils import pformat, configure_logging
+from .utils import ArgParser, pformat
 from ._errors import ApiError
 
-__all__ = ["ArchetypeAI", "ApiError", "pformat", "configure_logging"]
+__all__ = ["ArchetypeAI", "ApiError", "ArgParser", "pformat"]
 __version__ = ArchetypeAI.get_version()
