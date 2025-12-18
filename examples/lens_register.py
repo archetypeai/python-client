@@ -16,19 +16,12 @@ def main(args):
     lens_config = """
        lens_name: Custom Activity Monitor
        lens_config:
-        model_pipeline:
-        - processor_name: lens_camera_processor
-          processor_config: {}
         model_parameters:
             model_version: Newton::c2_1_250408d4362cc9
             instruction: |
                 You are a home security safety system. Monitor the real-time camera
                 streams and emit security alerts for any suspicous behavior.
             focus: User Behavior
-            camera_buffer_size: 5
-            camera_buffer_step_size: 5
-            min_replicas: 1
-            max_replicas: 16
     """
     lens_config = yaml.safe_load(lens_config)
 
