@@ -2,10 +2,9 @@
 # usage:
 #   curl https://live.staticflickr.com/8358/29211988243_82023c5524_b.jpg > test_image.jpg
 #   python -m examples.files_api --api_key=<YOUR_API_KEY> --filename=test_image.jpg
-import argparse
 import logging
 
-from archetypeai.api_client import ArchetypeAI
+from archetypeai import ArchetypeAI, ArgParser
 
 
 def main(args):
@@ -35,9 +34,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--api_key", required=True, type=str)
+    parser = ArgParser()
     parser.add_argument("--filename", required=True, type=str)
-    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
-    args = parser.parse_args()
+    args = parser.parse_args(configure_logging=True)
     main(args)

@@ -1,10 +1,9 @@
 # An example that demonstrates how to hook up a video and stream it through a custom lens.
 # usage:
 #   python -m examples.quickstart --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
-import argparse
 import logging
 
-from archetypeai import ArchetypeAI
+from archetypeai import ArchetypeAI, ArgParser
 
 def main(args):
     # Create a new client using your unique API key.
@@ -52,14 +51,12 @@ def session_callback(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = ArgParser()
     parser.add_argument("--filename", required=True, type=str)
-    parser.add_argument("--api_key", required=True, type=str)
-    parser.add_argument("--api_endpoint", default=ArchetypeAI.get_default_endpoint(), type=str)
     parser.add_argument("--instruction", default="Analyze the video with the following focus.", type=str)
     parser.add_argument("--focus", default="Describe the actions in the video.", type=str)
     parser.add_argument("--max_run_time_sec", default=10.0, type=float)
-    args = parser.parse_args()
+    args = parser.parse_args(configure_logging=True)
 
     # Validate the input.
     assert args.filename.endswith(".mp4"), "Enter an .mp4 video file"
