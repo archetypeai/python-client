@@ -2,13 +2,11 @@ from typing import Dict, List, Tuple, Optional
 
 import logging
 from pathlib import Path
-import sys
 import secrets
 
 import requests
 
 from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
-from archetypeai.utils import configure_logging
 from archetypeai._errors import ApiError
 
 
@@ -19,8 +17,6 @@ class ApiBase:
                  api_key: str,
                  api_endpoint: str = DEFAULT_ENDPOINT,
                  num_retries: int = 3,
-                 log_level: int = logging.INFO,
-                 log_format: str = "[%(asctime)s] %(message)s",
                  client_id: str = "",
                  request_timeout_sec: Optional[int] = None,
                  ) -> None:
@@ -32,7 +28,6 @@ class ApiBase:
         self.invalid_response_codes = [error_code for error_code in range(400, 417)]
         self.client_id = client_id if client_id else secrets.token_hex(8)  # Generate a uid for this client.
         self.request_timeout_sec = request_timeout_sec
-        configure_logging(level=log_level)
     
     def requests_get(self, api_endpoint: str, params: dict = {}, additional_headers: dict = {}) -> dict:
         request_args = {"api_endpoint": api_endpoint, "params": params, "additional_headers": additional_headers}
