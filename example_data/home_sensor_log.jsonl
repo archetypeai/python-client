@@ -1,0 +1,10 @@
+{"timestamp": "2026-02-24T09:20:00Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:02Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:04Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "open", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:06Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "movement_detected"}
+{"timestamp": "2026-02-24T09:20:08Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "movement_detected"}
+{"timestamp": "2026-02-24T09:20:10Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:12Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:14Z", "kitchen_faucet_sensor": "on", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:16Z", "kitchen_faucet_sensor": "on", "front_door_sensor": "closed", "living_room_sensor": "empty"}
+{"timestamp": "2026-02-24T09:20:18Z", "kitchen_faucet_sensor": "off", "front_door_sensor": "closed", "living_room_sensor": "empty"}
