@@ -10,7 +10,7 @@ from archetypeai._sensors import SensorsApi
 from archetypeai._lens import LensApi
 from archetypeai._kafka_client import KafkaApi
 
-_VERSION = "25.12.17.6"
+_VERSION = "26.02.23.0"
 
 
 class ArchetypeAI(ApiBase):
