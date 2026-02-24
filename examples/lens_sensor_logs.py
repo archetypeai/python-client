@@ -1,6 +1,6 @@
 # An example that demonstrates how to apply analysis to a JSONL file with sensor logs.
 # usage:
-#   python -m examples.lens_sensor_logs --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
+#   python -m examples.lens_sensor_logs --api_key=<YOUR_API_KEY> --filename=<JSONL_FILE_ID>
 import logging
 
 from archetypeai import ArchetypeAI, ArgParser
