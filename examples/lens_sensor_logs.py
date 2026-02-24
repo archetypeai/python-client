@@ -22,6 +22,8 @@ def main(args):
             model_version: Newton::c2_4_7b_251215a172f6d7
             instruction: {args.instruction}
             focus: {args.focus}
+            sensor_buffer_size: {args.sensor_buffer_size}
+            input_buffer_step_size: {args.input_buffer_step_size}
         input_streams:
             - stream_type: jsonl_file_reader
               stream_config:
@@ -59,9 +61,11 @@ if __name__ == "__main__":
     parser = ArgParser()
     parser.add_argument("--filename", required=True, type=str)
     parser.add_argument("--instruction", default="Analyze the sensor data in the text logs with the following focus.", type=str)
-    parser.add_argument("--focus", default="Output an alert if a user enters the kitchen.", type=str)
+    parser.add_argument("--focus", default="Output an alert if a user enters the kitchen. Consider a door open/closed event or faucet on/off event as a person present.", type=str)
+    parser.add_argument("--sensor_buffer_size", default=5, type=int, help="The number of JSONL rows buffered by the lens that are sent to Newton.")
+    parser.add_argument("--input_buffer_step_size", default=1, type=int, help="The step size for sampling incoming sensor events. A value of 1 means every row is read and input to the lens.")
     parser.add_argument("--max_run_time_sec", default=-1.0, type=float)
-    args = parser.parse_args()
+    args = parser.parse_args(configure_logging=True)
 
     # Validate the input.
     assert args.filename.endswith(".jsonl"), "Enter a valid .jsonl file"
