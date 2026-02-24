@@ -36,6 +36,10 @@ def session_callback(
         args: dict
     ) -> None:
     """Main function to run the logic of a custom lens session."""
+    # Validate the session is ready.
+    event_message = {"type": "session.validate"}
+    response = client.lens.sessions.process_event(session_id, event_message)
+    assert response["event_data"]["is_valid"], response
 
     # Create a SSE reader to read the output of the lens.
     sse_reader = client.lens.sessions.create_sse_consumer(
