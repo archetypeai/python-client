@@ -17,7 +17,7 @@ def main(args):
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
-            model_version: Newton::c2_3_7b_2508014e10af56
+            model_version: Newton::c2_4_7b_251215a172f6d7
             instruction: {args.instruction}
             focus: {args.focus}
             temporal_focus: 5
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("--filename", required=True, type=str)
     parser.add_argument("--instruction", default="Analyze the video with the following focus.", type=str)
     parser.add_argument("--focus", default="Describe the actions in the video.", type=str)
-    parser.add_argument("--max_run_time_sec", default=10.0, type=float)
+    parser.add_argument("--max_run_time_sec", default=-1.0, type=float)
     args = parser.parse_args(configure_logging=True)
 
     # Validate the input.

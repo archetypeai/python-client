@@ -16,7 +16,7 @@ def main(args):
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
-            model_version: Newton::c2_3_7b_2508014e10af56
+            model_version: Newton::c2_4_7b_251215a172f6d7
             instruction: Monitor the real-time camera stream and describe the activites.
             focus: human activity
             temporal_focus: 5

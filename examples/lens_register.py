@@ -17,7 +17,7 @@ def main(args):
        lens_name: Custom Activity Monitor
        lens_config:
         model_parameters:
-            model_version: Newton::c2_1_250408d4362cc9
+            model_version: Newton::c2_4_7b_251215a172f6d7
             instruction: |
                 You are a home security safety system. Monitor the real-time camera
                 streams and emit security alerts for any suspicous behavior.

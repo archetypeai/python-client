@@ -15,7 +15,7 @@ def main(args):
        lens_name: Example Lens
        lens_config:
         model_parameters:
-            model_version: Newton::c2_3_7b_2508014e10af56
+            model_version: Newton::c2_4_7b_251215a172f6d7
             focus: cars
     """, session_callback, client=client, args=args)
 
