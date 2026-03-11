@@ -6,9 +6,9 @@ import json
 
 from archetypeai import ArchetypeAI, ArgParser
 
-def stream_jsonl_file(args) -> dict:
+def stream_jsonl_file(filename: str) -> dict:
     """Loads a JSONL file and yields one JSON object at a time."""
-    with open(args.filename, "r") as file_handle:
+    with open(filename, "r") as file_handle:
         for line in file_handle:
             if line.strip():  # Skip empty lines.
                 yield json.loads(line)
