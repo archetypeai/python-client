@@ -1,40 +1,13 @@
-from typing import Any, Optional
-import logging
-import os
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any, Optional
+
 import pytest
 
 from archetypeai import ArchetypeAI, ApiError
 
-
-@pytest.fixture
-def client() -> ArchetypeAI:
-    """Attempts to initialize a client, if it fails it skips the tests."""
-    api_key = os.getenv("ATAI_API_KEY", None)
-    api_endpoint = os.getenv("ATAI_API_ENDPOINT", None)
-
-    if api_key is None or api_endpoint is None:
-        pytest.skip("Client is not initialized!")
-
-    client = ArchetypeAI(api_key, api_endpoint=api_endpoint, request_timeout_sec=30)
-
-    return client
-
-
-def generate_sparse_file(tmp_path: Path, filename: str, size_bytes: int) -> Path:
-    """Generates a sparse file with a given size and returns the file path."""
-    file_path = tmp_path / filename
-    with file_path.open("wb") as file_handle:
-        file_handle.seek(size_bytes - 1)
-        file_handle.write(b"\0")
-    return file_path
-
-
-def generate_file(tmp_path: Path, filename: str, file_contents: Any) -> Path:
-    """Generates a test file with contents and returns the file path."""
-    file_path = tmp_path / filename
-    file_path.write_text(file_contents)
-    return file_path
+from helpers import generate_file, generate_sparse_file, validate_files_match
 
 
 def generate_and_upload_file(client: ArchetypeAI, tmp_path: Path, filename: str, file_contents: Any) -> Optional[Path]:
@@ -44,15 +17,6 @@ def generate_and_upload_file(client: ArchetypeAI, tmp_path: Path, filename: str,
     if response_data["is_valid"] is True:
         return filename
     return None
-
-
-def validate_files_match(filename_a: str, filename_b: str) -> bool:
-    if os.path.isfile(filename_a) is False: 
-        return False
-    if os.path.isfile(filename_b) is False: 
-        return False
-    with open(filename_a, "rb") as f1, open(filename_b, "rb") as f2:
-        return f1.read() == f2.read()
 
 
 def test_client_initialized(client: ArchetypeAI):

@@ -36,12 +36,29 @@ class FilesApiBase(ApiBase):
 class LocalFilesApi(FilesApiBase):
     """API for working with local files."""
 
-    def upload(self, filename: str, base64_data: Union[str, None] = None) -> dict:
-        """Uploads a local file to the Archetype AI platform."""
-        if base64_data is None:
+    def upload(self, filename: str, base64_data: Union[str, None] = None, use_proxy: bool = True,
+               max_workers: int = 8, on_progress=None, cancel_event=None) -> dict:
+        """Uploads a local file to the Archetype AI platform.
+
+        Args:
+            filename: Path to the local file to upload.
+            base64_data: Optional base64-encoded file data. If provided, uploads via proxy.
+            use_proxy: If True (default), uploads through the platform proxy.
+                       If False, uploads directly to cloud storage using presigned URLs.
+            max_workers: Maximum number of concurrent part upload threads (only used with use_proxy=False).
+            on_progress: Optional callback called after each part completes (only used with use_proxy=False).
+                         Signature: on_progress(completed_parts, total_parts, completed_bytes, total_bytes).
+            cancel_event: Optional threading.Event that can be set to cancel the upload
+                          (only used with use_proxy=False).
+        """
+        if base64_data is not None:
+            if not use_proxy:
+                logging.warning("Base64 upload is currently only supported by proxy uploads but `use_proxy=False` was provided; defaulting to using the proxy")
+            response = self._upload_base64_data(filename, base64_data)
+        elif use_proxy:
             response = self._upload_file(filename)
         else:
-            response = self._upload_base64_data(filename, base64_data)
+            response = self._upload_file_direct(filename, max_workers, on_progress, cancel_event)
         assert "file_id" in response, response
         return response
         
@@ -55,6 +72,18 @@ class LocalFilesApi(FilesApiBase):
             )
             return response_data
     
+    def _upload_file_direct(self, filename: str, max_workers: int = 8,
+                            on_progress=None, cancel_event=None) -> dict:
+        from archetypeai._direct_upload import direct_upload
+        return direct_upload(
+            api=self,
+            filepath=filename,
+            file_type=self.get_file_type(filename),
+            max_workers=max_workers,
+            on_progress=on_progress,
+            cancel_event=cancel_event,
+        )
+
     def _upload_base64_data(self, filename: str, base64_data: str) -> dict:
         api_endpoint = self._get_endpoint(self.api_endpoint, "files/base64")
         encoder = MultipartEncoder(
