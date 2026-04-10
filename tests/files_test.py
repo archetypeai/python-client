@@ -71,13 +71,13 @@ def test_file_upload_invalid_type_fails(client: ArchetypeAI, tmp_path: Path):
 
 
 def test_file_upload_xl_file_fails(client: ArchetypeAI, tmp_path: Path):
-    file_size_bytes = 500 * 1024**2
+    file_size_bytes = 510 * 1024**2 # 510 MB, which is above the 500 MB limit
     filename = generate_sparse_file(tmp_path, "xl_file.txt", file_size_bytes)
 
     with pytest.raises(ApiError) as excinfo:
         client.files.local.upload(filename)
     api_error = excinfo.value
-    assert api_error.validate_error_code_exists("invalid_file_size") is True
+    assert api_error.validate_error_code_exists("request_entity_too_large") is True
     assert api_error.validate_error_count(1)
 
 
