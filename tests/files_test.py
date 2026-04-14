@@ -71,7 +71,7 @@ def test_file_upload_invalid_type_fails(client: ArchetypeAI, tmp_path: Path):
 
 
 def test_file_upload_xl_file_fails(client: ArchetypeAI, tmp_path: Path):
-    file_size_bytes = 510 * 1024**2 # 510 MB, which is above the 500 MB limit
+    file_size_bytes = 600 * 1024**2 # 600 MB, which is above the 512 MB data service body limit
     filename = generate_sparse_file(tmp_path, "xl_file.txt", file_size_bytes)
 
     with pytest.raises(ApiError) as excinfo:
