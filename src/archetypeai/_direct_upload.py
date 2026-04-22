@@ -66,10 +66,49 @@ class FilePartReader:
         self._file.close()
 
 
-def _upload_part_with_retry(part_info, filepath, max_retries=3, cancel_event=None, timeout_sec=None):
+def _is_expired_url_error(status_code, body):
+    """Whether a PUT failure indicates that the presigned URL has expired.
+
+    S3 returns 403 when the signature itself has expired, and can return 400 with
+    a ``TokenExpired`` error code when the underlying STS credentials used to sign
+    the URL have expired. The 400 check is deliberately conservative — we just look
+    for the specific code substring rather than parsing the XML body, so for non-S3
+    URLs this is effectively a no-op.
+    """
+    return status_code == 403 or (status_code == 400 and "TokenExpired" in body)
+
+
+def _generate_upload_urls(api, upload_id, part_numbers):
+    """Calls the regenerate upload URLs endpoint for the given part numbers."""
+    payload = {"part_numbers": part_numbers}
+    endpoint = api._get_endpoint(api.api_endpoint, "files/uploads", upload_id, "parts/urls")
+    return api.requests_post(
+        endpoint,
+        data_payload=json.dumps(payload),
+        additional_headers={"Content-Type": "application/json"},
+    )
+
+
+def _refresh_part_url(api, upload_id, part_number):
+    """Returns a fresh presigned URL for a single part."""
+    response = _generate_upload_urls(api, upload_id, [part_number])
+    for part in response.get("parts", []):
+        if part.get("part_number") == part_number:
+            return part["url"]
+    raise ValueError(f"generate_upload_urls returned no URL for part {part_number}")
+
+
+def _upload_part_with_retry(api, upload_id, part_info, filepath, max_retries=3, cancel_event=None, timeout_sec=None):
     """Uploads a single part to a presigned URL with exponential backoff.
 
+    If the PUT fails with an "expired URL" error (403, or 400 with TokenExpired), the
+    URL is refreshed via the regenerate-URLs endpoint and the PUT is retried. The first
+    refresh is free: no backoff and it does not count against ``max_retries``. Subsequent
+    expired-URL errors count as regular retries, with backoff.
+
     Args:
+        api: An ApiBase instance (used to call the regenerate-URLs endpoint).
+        upload_id: The in-progress upload's ID (used to refresh URLs).
         part_info: Dict with keys: part_number, url, offset, length.
         filepath: Path to the source file on disk.
         max_retries: Maximum number of retry attempts.
@@ -86,7 +125,10 @@ def _upload_part_with_retry(part_info, filepath, max_retries=3, cancel_event=Non
     with FilePartReader(filepath, part_info["offset"], part_info["length"]) as reader:
         last_error = None
         part_number = part_info['part_number']
-        for attempt in range(max_retries):
+        url = part_info["url"]
+        has_refreshed = False
+        attempt = 0
+        while attempt < max_retries:
             if cancel_event is not None and cancel_event.is_set():
                 raise ValueError("Upload cancelled")
 
@@ -103,7 +145,7 @@ def _upload_part_with_retry(part_info, filepath, max_retries=3, cancel_event=Non
 
             try:
                 response = requests.put(
-                    part_info["url"],
+                    url,
                     data=reader,
                     headers={"Content-Length": str(reader.length)},
                     timeout=timeout_sec,
@@ -111,17 +153,37 @@ def _upload_part_with_retry(part_info, filepath, max_retries=3, cancel_event=Non
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
                 logging.warning(f"Part {part_number}: network error on attempt {attempt + 1}: {exc}")
                 last_error = exc
+                attempt += 1
                 continue
 
             if response.status_code in (200, 201):
                 etag = response.headers.get("etag", "")
                 return {"part_number": part_number, "part_token": etag}
 
+            if _is_expired_url_error(response.status_code, response.text):
+                if not has_refreshed:
+                    has_refreshed = True
+                    logging.debug(
+                        f"Part {part_number}: presigned URL expired (status {response.status_code}), refreshing"
+                    )
+                    url = _refresh_part_url(api, upload_id, part_number)
+                    reader.reset()
+                    continue
+                logging.warning(
+                    f"Part {part_number}: presigned URL expired again after refresh on attempt "
+                    f"{attempt + 1}, retrying with a new URL..."
+                )
+                url = _refresh_part_url(api, upload_id, part_number)
+                last_error = ValueError(f"HTTP {response.status_code}: {response.text}")
+                attempt += 1
+                continue
+
             if response.status_code in _RETRYABLE_STATUS_CODES:
                 logging.warning(
                     f"Part {part_number}: got {response.status_code} on attempt {attempt + 1}, retrying..."
                 )
                 last_error = ValueError(f"HTTP {response.status_code}: {response.text}")
+                attempt += 1
                 continue
 
             # Non-retryable error.
@@ -214,8 +276,8 @@ def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, can
         with ThreadPoolExecutor(max_workers=min(max_workers, total_parts)) as executor:
             futures = {
                 executor.submit(
-                    _upload_part_with_retry, part, filepath, api.num_retries, cancel_event,
-                    api.request_timeout_sec,
+                    _upload_part_with_retry, api, upload_id, part, filepath, api.num_retries,
+                    cancel_event, api.request_timeout_sec,
                 ): part
                 for part in parts
             }
