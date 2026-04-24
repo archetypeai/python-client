@@ -194,8 +194,12 @@ def _upload_part_with_retry(api, upload_id, part_info, filepath, max_retries=3, 
         )
 
 
-def _initiate_upload(api, filepath, file_type):
+def _initiate_upload(api, filepath, file_type, resume_if_started=False):
     """Calls the initiate upload endpoint.
+
+    When ``resume_if_started`` is True, if a matching in-progress upload already exists
+    for this (org, filename), the server reuses it and returns only the parts not yet
+    checkpointed (with ``is_resume=True`` in the response).
 
     Returns the parsed response dict with upload_id, parts, etc.
     """
@@ -206,6 +210,8 @@ def _initiate_upload(api, filepath, file_type):
         "file_type": file_type,
         "num_bytes": num_bytes,
     }
+    if resume_if_started:
+        payload["resume_if_started"] = True
     endpoint = api._get_endpoint(api.api_endpoint, "files/uploads/initiate")
     return api.requests_post(
         endpoint,
@@ -241,7 +247,28 @@ def _abort_upload(api, upload_id):
         logging.warning(f"Failed to abort upload {upload_id}: {exc}")
 
 
-def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, cancel_event=None):
+def _checkpoint_parts(api, upload_id, parts):
+    """Best-effort checkpoint of a subset of an upload's parts.
+
+    The server stores each part's token so that a subsequent initiate with
+    ``resume_if_started=True`` returns only the not-yet-checkpointed parts.
+    Failures are logged but not propagated — callers treat checkpointing as
+    non-essential.
+    """
+    try:
+        payload = {"parts": parts}
+        endpoint = api._get_endpoint(api.api_endpoint, "files/uploads", upload_id, "parts/checkpoint")
+        api.requests_post(
+            endpoint,
+            data_payload=json.dumps(payload),
+            additional_headers={"Content-Type": "application/json"},
+        )
+    except Exception as exc:
+        logging.warning(f"Checkpoint for upload {upload_id} failed: {exc}")
+
+
+def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, cancel_event=None,
+                  allow_resume=False, disable_checkpointing=False):
     """Performs a direct-to-cloud upload using presigned URLs.
 
     Args:
@@ -251,7 +278,18 @@ def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, can
         max_workers: Maximum number of concurrent part upload threads.
         on_progress: Optional callback called after each part completes.
                      Signature: on_progress(completed_parts, total_parts, completed_bytes, total_bytes).
+                     If ``allow_resume`` is True and the server resumes an existing
+                     upload, the callback is also invoked once immediately with the
+                     counts of parts/bytes already uploaded in a previous session.
         cancel_event: Optional threading.Event; if set, the upload is cancelled.
+        allow_resume: When True, the initiate request asks the server to reuse an
+                      existing in-progress upload for the same filename (same file_type
+                      and num_bytes) if one exists. Parts that have already been
+                      checkpointed server-side are skipped. Defaults to False.
+        disable_checkpointing: When True, the client will not checkpoint each part
+                               as it is uploaded. Defaults to False — the common
+                               case is to checkpoint so that a later call with
+                               ``allow_resume=True`` can skip already-uploaded parts.
 
     Returns:
         Dict matching the proxy upload format: {"is_valid": True, "file_id": ..., "file_uid": ...}
@@ -260,37 +298,61 @@ def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, can
         cancel_event = threading.Event()
 
     upload_id = None
+    checkpoint_executor = None
     try:
-        initiate_response = _initiate_upload(api, filepath, file_type)
+        initiate_response = _initiate_upload(api, filepath, file_type, resume_if_started=allow_resume)
         upload_id = initiate_response["upload_id"]
         parts = initiate_response["parts"]
         if cancel_event.is_set():
             raise ValueError("Upload cancelled")
 
-        total_parts = len(parts)
-        total_bytes = sum(p["length"] for p in parts)
+        # When the server resumed a prior upload, ``parts`` only contains the parts
+        # that still need to be uploaded. Use the response-level totals so we report
+        # progress against the full file.
+        total_bytes = initiate_response.get("total_bytes")
+        if total_bytes is None:
+            total_bytes = sum(p["length"] for p in parts)
+        total_parts = initiate_response.get("num_parts")
+        if total_parts is None:
+            total_parts = len(parts)
 
-        # Upload all parts in parallel.
+        is_resume = initiate_response.get("is_resume", False)
+        remaining_bytes = sum(p["length"] for p in parts)
+        completed_bytes = total_bytes - remaining_bytes if is_resume else 0
+        completed_count = total_parts - len(parts) if is_resume else 0
+
+        if is_resume and on_progress is not None and completed_count > 0:
+            on_progress(completed_count, total_parts, completed_bytes, total_bytes)
+
         completed_parts = []
-        completed_bytes = 0
-        with ThreadPoolExecutor(max_workers=min(max_workers, total_parts)) as executor:
-            futures = {
-                executor.submit(
-                    _upload_part_with_retry, api, upload_id, part, filepath, api.num_retries,
-                    cancel_event, api.request_timeout_sec,
-                ): part
-                for part in parts
-            }
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                except Exception:
-                    cancel_event.set()
-                    raise
-                completed_parts.append(result)
-                completed_bytes += futures[future]["length"]
-                if on_progress is not None:
-                    on_progress(len(completed_parts), total_parts, completed_bytes, total_bytes)
+
+        if not disable_checkpointing:
+            # Separate executor so checkpoint requests do not share slots with part
+            # uploads. Each submission is fire-and-forget; we never block on results.
+            checkpoint_executor = ThreadPoolExecutor(max_workers=4)
+
+        if parts:
+            with ThreadPoolExecutor(max_workers=min(max_workers, len(parts))) as executor:
+                futures = {
+                    executor.submit(
+                        _upload_part_with_retry, api, upload_id, part, filepath, api.num_retries,
+                        cancel_event, api.request_timeout_sec,
+                    ): part
+                    for part in parts
+                }
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                    except Exception:
+                        cancel_event.set()
+                        raise
+                    completed_parts.append(result)
+                    completed_count += 1
+                    completed_bytes += futures[future]["length"]
+                    if on_progress is not None:
+                        on_progress(completed_count, total_parts, completed_bytes, total_bytes)
+                    if checkpoint_executor is not None:
+                        checkpoint_executor.submit(_checkpoint_parts, api, upload_id, [result])
 
         completed_parts.sort(key=lambda p: p["part_number"])
         complete_response = _complete_upload(api, upload_id, completed_parts)
@@ -300,3 +362,10 @@ def direct_upload(api, filepath, file_type, max_workers=8, on_progress=None, can
         if upload_id is not None:
             _abort_upload(api, upload_id)
         raise
+    finally:
+        if checkpoint_executor is not None:
+            # Don't block on pending checkpoints: they are best-effort and the
+            # upload is already complete (or aborted). ThreadPoolExecutor worker
+            # threads are daemons, so in-flight checkpoints keep running but won't
+            # prevent the interpreter from exiting.
+            checkpoint_executor.shutdown(wait=False)
