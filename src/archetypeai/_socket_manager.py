@@ -125,7 +125,7 @@ class SocketManager(ApiBase):
     def get_outgoing_message_latency(self) -> float:
         """Returns the average latency of outgoing data packets in seconds."""
         self._refresh_stats()
-        return self.stats["outgoing_message_queue_latency"]
+        return self.stats["outgoing_message_latency"]
     
     def get_stats(self) -> dict:
         """Returns the stats of a sensor stream."""
@@ -140,6 +140,8 @@ class SocketManager(ApiBase):
             elif "max_outgoing_message_queue_size" in stats_event:
                 self.stats["max_outgoing_message_queue_size"] = max(
                     stats_event["max_outgoing_message_queue_size"], self.stats["max_outgoing_message_queue_size"])
+            elif "outgoing_message_latency" in stats_event:
+                self.stats["outgoing_message_latency"] = stats_event["outgoing_message_latency"]
 
     def _worker(self, worker_id: str, streamer_socket) -> None:
         logging.debug(f"Starting worker {worker_id}")
@@ -233,6 +235,9 @@ class SocketManager(ApiBase):
         logging.debug(f"Sent topic_id: {topic_id} payload size: {num_bytes_sent} bytes latency: {latency}")
         self.outgoing_message_latency_total += latency
         self.outgoing_message_count += 1
+        self.stats_queue.put({
+            "outgoing_message_latency": self.outgoing_message_latency_total / self.outgoing_message_count
+        })
         return True
 
     def _send_data(self, message: dict, streamer_socket) -> int:
