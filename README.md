@@ -77,9 +77,10 @@ python -m examples.quickstart \
 ## Unit Tests
 You can run the unit tests for the python client by running the following in your terminal:
 ```bash
+pip install -e '.[test]'
 ATAI_API_KEY="your api key" ATAI_API_ENDPOINT="your api endpoint" python -m pytest .
 ```
 
 ## Requirements
 * An Archetype AI developer key (request one at https://www.archetypeai.io)
-* Python 3.8 or higher.
+* Python 3.10 or higher.
