@@ -1,5 +1,6 @@
 import logging
 
+from archetypeai._agents import AgentsApi
 from archetypeai._base import ApiBase
 from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
@@ -10,7 +11,7 @@ from archetypeai._sensors import SensorsApi
 from archetypeai._lens import LensApi
 from archetypeai._kafka_client import KafkaApi
 
-_VERSION = "26.04.30.0"
+_VERSION = "26.08.19.0"
 
 
 class ArchetypeAI(ApiBase):
@@ -22,6 +23,7 @@ class ArchetypeAI(ApiBase):
     sensors: SensorsApi
     lens: LensApi
     kafka: KafkaApi
+    agents: AgentsApi
 
     @staticmethod
     def get_version() -> str:
@@ -42,3 +44,4 @@ class ArchetypeAI(ApiBase):
         self.sensors = SensorsApi(**filter_kwargs(SensorsApi.__init__, input_args))
         self.lens = LensApi(**filter_kwargs(LensApi.__init__, input_args))
         self.kafka = KafkaApi(**filter_kwargs(KafkaApi.__init__, input_args))
+        self.agents = AgentsApi(**filter_kwargs(AgentsApi.__init__, input_args))
