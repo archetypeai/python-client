@@ -48,11 +48,17 @@ def main(args):
     status = agent.get("status")
     logging.info(f"Agent finished with status: {status}")
 
-    if status != "completed":
-        # Log the agent's event log to help debug the failure.
+    # `status` is not a reliable terminal signal. A run whose output exists can
+    # report `failed` when the job poller flakes, and pods have read `running`
+    # for a long time after exiting — so ask /results before concluding the run
+    # produced nothing.
+    results = client.agents.instances.get_results(agent_id)
+    if not results.get("data"):
         events = client.agents.instances.get_events(agent_id)
-        logging.error(f"Agent did not complete: {pformat(events)}")
+        logging.error(f"Agent produced no results (status: {status}): {pformat(events)}")
         return
+    if status != "completed":
+        logging.warning(f"Status is {status} but results exist — treating as succeeded")
 
     # Read back the results produced by the agent (structured step list).
     results = client.agents.instances.get_results(agent_id)
