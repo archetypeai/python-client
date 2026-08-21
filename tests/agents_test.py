@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from archetypeai import ArchetypeAI, pformat
+from archetypeai._agents import _drop_missing
 
 EXAMPLE_DATA_DIR = Path(__file__).resolve().parent.parent / "example_data"
 OSM_SENSOR_LOG = EXAMPLE_DATA_DIR / "osm_quick_start_drilling_log.csv"
@@ -13,6 +14,26 @@ OSM_SENSOR_LOG = EXAMPLE_DATA_DIR / "osm_quick_start_drilling_log.csv"
 # Generous ceiling for the agent run; OSM usually finishes the sample sensor
 # log in a few minutes.
 MAX_AGENT_RUN_TIME_SEC = 900.0
+
+
+def test_drop_missing_lowercases_booleans():
+    """Query params must carry lowercase `true`/`false`.
+
+    The API's query-string deserialiser rejects Python's "True"/"False" with
+    400 "provided string was not `true` or `false`", and the client surfaces
+    that as an empty ApiError, so the cause is invisible. Verified against
+    prod: ?yaml=True -> 400, ?yaml=true -> 200.
+
+    Runs offline; no client fixture needed.
+    """
+    assert _drop_missing({"yaml": True}) == {"yaml": "true"}
+    assert _drop_missing({"yaml": False}) == {"yaml": "false"}
+    # None still means "unset", and non-booleans pass through untouched
+    assert _drop_missing({"yaml": None}) == {}
+    assert _drop_missing({"limit": 100, "after": "cur", "query": "OSM"}) == {
+        "limit": 100, "after": "cur", "query": "OSM"}
+    # ints must not be mangled into strings by the bool branch
+    assert _drop_missing({"limit": 0}) == {"limit": 0}
 
 
 def require(response: dict, key: str):
