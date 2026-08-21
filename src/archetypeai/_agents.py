@@ -23,8 +23,28 @@ def _default_agent_endpoint(api_endpoint: str) -> str:
 
 
 def _drop_missing(params: dict) -> dict:
-    """Removes any unset (None) entries so they are not sent to the API."""
-    return {key: value for key, value in params.items() if value is not None}
+    """Removes unset (None) entries and renders booleans the way the API expects.
+
+    The query-string deserialiser accepts only lowercase `true` / `false`. A
+    Python bool passed through verbatim is serialised as "True", which the API
+    rejects:
+
+        GET /agents/blueprints/tva?yaml=True
+        -> 400 Failed to deserialize query string: yaml: provided string was
+               not `true` or `false`
+        GET /agents/blueprints/tva?yaml=true
+        -> 200
+
+    Callers see that as an empty ApiError, so the cause is invisible from the
+    client side. Normalise here rather than at each call site, so any boolean
+    parameter added later is correct by default.
+    """
+    normalised = {}
+    for key, value in params.items():
+        if value is None:
+            continue
+        normalised[key] = str(value).lower() if isinstance(value, bool) else value
+    return normalised
 
 
 def _as_data_ref(ref: str | dict) -> dict:
