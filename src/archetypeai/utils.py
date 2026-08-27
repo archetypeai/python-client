@@ -25,8 +25,8 @@ def pformat(data: dict, prefix: str = "") -> str:
 class ArgParser(argparse.ArgumentParser):
     """Creates a custom arg parser with common ArchetypeAI args."""
 
-    def __init__(self):
-        super().__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.add_argument("--api_key", required=True, type=str, help="Your Archetype AI API key")
         self.add_argument("--api_endpoint", default=DEFAULT_ENDPOINT, type=str, help="The target API endpoint")
         self.add_argument("--logging_level", default=logging.INFO, type=str, help="Sets the logging level")
