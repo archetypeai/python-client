@@ -3,7 +3,7 @@ import inspect
 
 import requests
 
-DEFAULT_ENDPOINT = "https://api.u1.archetypeai.app/v0.5"
+DEFAULT_ENDPOINT = "https://platform.u1.archetypeai.app/api"
 
 
 def safely_extract_response_data(response: requests.Response) -> Dict:

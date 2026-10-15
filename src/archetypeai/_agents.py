@@ -3,23 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import time
-from urllib.parse import urlparse
 
 from archetypeai._base import ApiBase
 from archetypeai._errors import ApiError
 
 # Statuses where an agent has finished and will not change state again.
-TERMINAL_AGENT_STATUSES = ("completed", "failed", "canceled")
-
-
-def _default_agent_endpoint(api_endpoint: str) -> str:
-    """Returns the endpoint root (scheme + host) the agent API is served from.
-
-    The agent API is versionless (e.g. https://api.archetypeai.app/agents), unlike
-    the versioned APIs (e.g. https://api.archetypeai.app/v0.5/files).
-    """
-    parsed = urlparse(api_endpoint)
-    return f"{parsed.scheme}://{parsed.netloc}"
+TERMINAL_AGENT_STATUSES = ("completed", "failed", "cancelled")
 
 
 def _drop_missing(params: dict) -> dict:
@@ -32,6 +21,46 @@ def _as_data_ref(ref: str | dict) -> dict:
     if isinstance(ref, str):
         return {"type": "file", "id": ref}
     return ref
+
+
+def _as_example(example: str | dict) -> dict:
+    """Converts a plain file ID into an eval example, passing dicts through untouched."""
+    if isinstance(example, str):
+        return {"inputs": [_as_data_ref(example)]}
+    return example
+
+
+def _wait_until_terminal(
+    get_resource,
+    resource_id: str,
+    kind: str,
+    poll_interval_sec: float,
+    timeout_sec: float,
+    describe=None,
+) -> dict:
+    """Polls a resource until it reaches a terminal status and returns it.
+
+    Raises a TimeoutError if it is still running after timeout_sec seconds (a
+    negative timeout waits forever). describe optionally renders extra progress
+    detail for the periodic log line.
+    """
+    start_time = time.time()
+    last_log_time = start_time
+    while True:
+        resource = get_resource(resource_id)
+        status = resource.get("status")
+        if status is None:
+            raise ApiError(f"Malformed {kind} response, missing 'status': {resource}")
+        if status in TERMINAL_AGENT_STATUSES:
+            return resource
+        elapsed = time.time() - start_time
+        if timeout_sec >= 0 and elapsed >= timeout_sec:
+            raise TimeoutError(f"{kind.capitalize()} {resource_id} did not complete within {timeout_sec} seconds")
+        if time.time() - last_log_time >= 30.0:
+            detail = f" {describe(resource)}" if describe else ""
+            logging.info(f"{kind.capitalize()} {resource_id} is {status}{detail} ({int(elapsed)}s elapsed)")
+            last_log_time = time.time()
+        time.sleep(poll_interval_sec)
 
 
 class _AgentApiBase(ApiBase):
@@ -112,14 +141,16 @@ class BundlesApi(_AgentApiBase):
         blueprint: str,
         name: str,
         description: str = "",
-        model: str | None = None,
+        models: dict | None = None,
         values: dict | None = None,
         artifacts: dict | None = None,
     ) -> dict:
         """Creates a bundle pinned to a blueprint and returns its metadata.
 
         Pass blueprint as a `blp_` id or key (e.g. `mga`). Bundles are created
-        ready to run and are owned by your org.
+        ready to run and are owned by your org. models is a per-slot model
+        override, e.g. {"vision": "omega-1.5"}; omit to use the blueprint's
+        default model for every slot.
         """
         api_endpoint = self._get_endpoint(self.api_endpoint, "agents/bundles")
         payload: dict = {
@@ -127,8 +158,8 @@ class BundlesApi(_AgentApiBase):
             "name": name,
             "description": description,
         }
-        if model is not None:
-            payload["model"] = model
+        if models is not None:
+            payload["models"] = models
         if values is not None:
             payload["values"] = values
         if artifacts is not None:
@@ -247,22 +278,241 @@ class InstancesApi(_AgentApiBase):
         Raises a TimeoutError if the agent is still running after timeout_sec seconds
         (a negative timeout, the default, waits forever).
         """
-        start_time = time.time()
-        last_log_time = start_time
-        while True:
-            agent = self.get(agent_id)
-            status = agent.get("status")
-            if status is None:
-                raise ApiError(f"Malformed agent response, missing 'status': {agent}")
-            if status in TERMINAL_AGENT_STATUSES:
-                return agent
-            elapsed = time.time() - start_time
-            if timeout_sec >= 0 and elapsed >= timeout_sec:
-                raise TimeoutError(f"Agent {agent_id} did not complete within {timeout_sec} seconds")
-            if time.time() - last_log_time >= 30.0:
-                logging.info(f"Agent {agent_id} is {status} ({int(elapsed)}s elapsed)")
-                last_log_time = time.time()
-            time.sleep(poll_interval_sec)
+        return _wait_until_terminal(self.get, agent_id, "agent", poll_interval_sec, timeout_sec)
+
+
+class EvalsApi(_AgentApiBase):
+    """Main class for handling all eval API calls.
+
+    An eval scores a blueprint on labeled examples and reports its metrics, e.g.
+    the macro F1 of an OSM blueprint's predicted states.
+    """
+
+    def list(
+        self,
+        limit: int | None = None,
+        after: str | None = None,
+        before: str | None = None,
+        status: str | None = None,
+        query: str | None = None,
+        blueprint_id: str | None = None,
+    ) -> dict:
+        """Lists the evals in your org, newest first.
+
+        Pass the previous page's next_cursor as after to fetch the next page. Pass
+        status (e.g. `running`), query (substring match), or blueprint_id to filter.
+        """
+        api_endpoint = self._get_endpoint(self.api_endpoint, "agents/evals")
+        params = _drop_missing(
+            {
+                "limit": limit,
+                "after": after,
+                "before": before,
+                "status": status,
+                "query": query,
+                "blueprint_id": blueprint_id,
+            }
+        )
+        return self.requests_get(api_endpoint, params=params)
+
+    def get(self, eval_id: str) -> dict:
+        """Gets a single eval by its `evl_` ID, with its metrics report once completed."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/evals/{eval_id}")
+        return self.requests_get(api_endpoint)
+
+    def create(
+        self,
+        blueprint_id: str,
+        examples: list[str | dict],
+        name: str = "",
+        primary: str | None = None,
+        targets: dict | None = None,
+        emit_predictions: bool | None = None,
+    ) -> dict:
+        """Creates and starts an eval of a blueprint, and returns its metadata.
+
+        Pass blueprint_id as a `blp_` ID. Each example is either a file ID or an
+        example dict, e.g. {"inputs": [{"type": "file", "id": "file_abc123"}],
+        "ground_truth": {...}}. A file ID alone works when the file carries its
+        labels in a column named after the target, e.g. `state` for OSM.
+        primary (e.g. `state.macro_f1`) and targets override the blueprint's
+        scoring defaults for this run.
+        """
+        api_endpoint = self._get_endpoint(self.api_endpoint, "agents/evals")
+        payload: dict = {
+            "blueprint_id": blueprint_id,
+            "examples": [_as_example(example) for example in examples],
+            "name": name,
+        }
+        payload.update(_drop_missing({"primary": primary, "targets": targets, "emit_predictions": emit_predictions}))
+        return self.post_json(api_endpoint, payload)
+
+    def list_examples(
+        self, eval_id: str, limit: int | None = None, after: str | None = None, before: str | None = None
+    ) -> dict:
+        """Lists what an eval measured for each of its examples, in the order they were given."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/evals/{eval_id}/examples")
+        params = _drop_missing({"limit": limit, "after": after, "before": before})
+        return self.requests_get(api_endpoint, params=params)
+
+    def cancel(self, eval_id: str) -> dict:
+        """Cancels a pending or running eval."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/evals/{eval_id}/cancel")
+        return self.post_json(api_endpoint, {})
+
+    def delete(self, eval_id: str) -> dict:
+        """Deletes a finished eval and the files it produced."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/evals/{eval_id}")
+        return self.requests_delete(api_endpoint)
+
+    def wait_until_done(self, eval_id: str, poll_interval_sec: float = 10.0, timeout_sec: float = -1.0) -> dict:
+        """Polls an eval until it reaches a terminal status and returns its metadata.
+
+        Raises a TimeoutError if the eval is still running after timeout_sec seconds
+        (a negative timeout, the default, waits forever).
+        """
+        return _wait_until_terminal(self.get, eval_id, "eval", poll_interval_sec, timeout_sec)
+
+
+def _describe_progress(optimization: dict) -> str:
+    """Renders an optimization's trial counts for the periodic log line."""
+    progress = optimization.get("progress") or {}
+    counts = ", ".join(f"{count} {state}" for state, count in progress.items() if count)
+    return f"(trials: {counts})" if counts else ""
+
+
+class OptimizationsApi(_AgentApiBase):
+    """Main class for handling all optimization API calls.
+
+    An optimization searches a blueprint's values: each trial fits the blueprint
+    on the training examples and scores it on the validation examples. Promote
+    the winning trial to get a blueprint of your own, ready to bundle and run.
+    """
+
+    def list(
+        self,
+        limit: int | None = None,
+        after: str | None = None,
+        before: str | None = None,
+        status: str | None = None,
+        query: str | None = None,
+        blueprint_id: str | None = None,
+    ) -> dict:
+        """Lists the optimizations in your org, newest first.
+
+        Pass the previous page's next_cursor as after to fetch the next page. Pass
+        status (e.g. `running`), query (substring match), or blueprint_id to filter.
+        """
+        api_endpoint = self._get_endpoint(self.api_endpoint, "agents/optimizations")
+        params = _drop_missing(
+            {
+                "limit": limit,
+                "after": after,
+                "before": before,
+                "status": status,
+                "query": query,
+                "blueprint_id": blueprint_id,
+            }
+        )
+        return self.requests_get(api_endpoint, params=params)
+
+    def get(self, optimization_id: str) -> dict:
+        """Gets a single optimization by its `opt_` ID, with its trial progress and best trial."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/optimizations/{optimization_id}")
+        return self.requests_get(api_endpoint)
+
+    def create(
+        self,
+        blueprint_id: str,
+        objective: str,
+        validation_examples: list[str | dict],
+        max_trials: int,
+        training_examples: list[str | dict] | None = None,
+        calibration_examples: list[str | dict] | None = None,
+        search_space: dict | None = None,
+        overrides: dict | None = None,
+        constraints: dict | None = None,
+        name: str = "",
+    ) -> dict:
+        """Creates and starts an optimization of a blueprint, and returns its metadata.
+
+        Pass blueprint_id as a `blp_` ID and objective as one of the blueprint's
+        metrics, e.g. `macro_f1`. Examples take the same form as for evals. The
+        run spends at most max_trials trials sampling search_space, e.g.
+        {"parameters": {"k_neighbors": {"kind": "value", "spec": {"type":
+        "categorical", "values": [5, 31]}}}}. overrides sets blueprint values or
+        models for every trial, e.g. {"values": {"states": ["idle", "running"]}};
+        values the blueprint marks as required must be set here.
+        """
+        api_endpoint = self._get_endpoint(self.api_endpoint, "agents/optimizations")
+        payload: dict = {
+            "blueprint_id": blueprint_id,
+            "objective": objective,
+            "validation_examples": [_as_example(example) for example in validation_examples],
+            "budget": {"max_trials": max_trials},
+            "name": name,
+        }
+        if training_examples is not None:
+            payload["training_examples"] = [_as_example(example) for example in training_examples]
+        if calibration_examples is not None:
+            payload["calibration_examples"] = [_as_example(example) for example in calibration_examples]
+        payload.update(_drop_missing({"search_space": search_space, "overrides": overrides, "constraints": constraints}))
+        return self.post_json(api_endpoint, payload)
+
+    def list_trials(
+        self,
+        optimization_id: str,
+        limit: int | None = None,
+        after: str | None = None,
+        before: str | None = None,
+        status: str | None = None,
+    ) -> dict:
+        """Lists an optimization's trials, newest first, with each one's sampled values and scores."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/optimizations/{optimization_id}/trials")
+        params = _drop_missing({"limit": limit, "after": after, "before": before, "status": status})
+        return self.requests_get(api_endpoint, params=params)
+
+    def promote_trial(
+        self,
+        optimization_id: str,
+        trial_id: str,
+        blueprint_key: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> dict:
+        """Promotes a completed trial to a blueprint of your own and returns that blueprint.
+
+        The blueprint carries the trial's values and fitted models. By default it is
+        keyed after the searched blueprint and the trial's ID, and keeps the searched
+        blueprint's name and description.
+        """
+        api_endpoint = self._get_endpoint(
+            self.api_endpoint, f"agents/optimizations/{optimization_id}/trials/{trial_id}/promote"
+        )
+        payload = _drop_missing({"blueprint_key": blueprint_key, "name": name, "description": description})
+        return self.post_json(api_endpoint, payload)
+
+    def cancel(self, optimization_id: str) -> dict:
+        """Cancels a pending or running optimization and its unfinished trials."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/optimizations/{optimization_id}/cancel")
+        return self.post_json(api_endpoint, {})
+
+    def delete(self, optimization_id: str) -> dict:
+        """Deletes a finished optimization and its trials. Promoted blueprints are kept."""
+        api_endpoint = self._get_endpoint(self.api_endpoint, f"agents/optimizations/{optimization_id}")
+        return self.requests_delete(api_endpoint)
+
+    def wait_until_done(
+        self, optimization_id: str, poll_interval_sec: float = 30.0, timeout_sec: float = -1.0
+    ) -> dict:
+        """Polls an optimization until it reaches a terminal status and returns its metadata.
+
+        Logs trial progress while it runs. Raises a TimeoutError if the run is still
+        going after timeout_sec seconds (a negative timeout, the default, waits forever).
+        """
+        return _wait_until_terminal(
+            self.get, optimization_id, "optimization", poll_interval_sec, timeout_sec, _describe_progress
+        )
 
 
 class AgentsApi(ApiBase):
@@ -275,20 +525,24 @@ class AgentsApi(ApiBase):
       ready to run
     - execute: instances — run the bundle, launching agent instances that
       process your data and produce results
+
+    Evals score a blueprint on labeled data; optimizations search a blueprint's
+    values and fit its models, and promote the best trial to a new blueprint.
     """
 
     blueprints: BlueprintsApi
     bundles: BundlesApi
     instances: InstancesApi
+    evals: EvalsApi
+    optimizations: OptimizationsApi
 
-    def __init__(self, api_key: str, api_endpoint: str, agent_endpoint: str = "") -> None:
-        # The agent API has its own endpoint; by default it is served from the
-        # root of the main endpoint, without the version path.
-        agent_endpoint = agent_endpoint or _default_agent_endpoint(api_endpoint)
-        super().__init__(api_key, agent_endpoint)
-        self.blueprints = BlueprintsApi(api_key, agent_endpoint)
-        self.bundles = BundlesApi(api_key, agent_endpoint)
-        self.instances = InstancesApi(api_key, agent_endpoint)
+    def __init__(self, api_key: str, api_endpoint: str) -> None:
+        super().__init__(api_key, api_endpoint)
+        self.blueprints = BlueprintsApi(api_key, api_endpoint)
+        self.bundles = BundlesApi(api_key, api_endpoint)
+        self.instances = InstancesApi(api_key, api_endpoint)
+        self.evals = EvalsApi(api_key, api_endpoint)
+        self.optimizations = OptimizationsApi(api_key, api_endpoint)
 
     def get_node_registry(self) -> dict:
         """Gets the registry of connector and processing nodes available to blueprints."""
