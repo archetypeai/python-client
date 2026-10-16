@@ -1,35 +1,27 @@
 import logging
+import warnings
 
 from archetypeai._agents import AgentsApi
 from archetypeai._base import ApiBase
-from archetypeai._capabilities import CapabilitiesApi
 from archetypeai._common import DEFAULT_ENDPOINT, filter_kwargs
 from archetypeai._errors import ApiError as ApiError
 from archetypeai._files import FilesApi
-from archetypeai._messaging import MessagingApi
-from archetypeai._sensors import SensorsApi
 from archetypeai._lens import LensApi
-from archetypeai._kafka_client import KafkaApi
 
-_VERSION = "26.08.19.0"
+_VERSION = "26.10.14.0"
 
 
 class ArchetypeAI(ApiBase):
     """Main client for the Archetype AI platform."""
 
     files: FilesApi
-    capabilities: CapabilitiesApi
-    messaging: MessagingApi
-    sensors: SensorsApi
-    lens: LensApi
-    kafka: KafkaApi
     agents: AgentsApi
 
     @staticmethod
     def get_version() -> str:
         """Returns the current version of the Archetype client."""
         return _VERSION
-    
+
     @staticmethod
     def get_default_endpoint() -> str:
         """Returns the default endpoint the Archetype client should connect to."""
@@ -39,9 +31,15 @@ class ArchetypeAI(ApiBase):
         super().__init__(api_key, api_endpoint)
         input_args = {"api_key": api_key, "api_endpoint": api_endpoint, **kwargs}
         self.files = FilesApi(**filter_kwargs(FilesApi.__init__, input_args))
-        self.capabilities = CapabilitiesApi(**filter_kwargs(CapabilitiesApi.__init__, input_args))
-        self.messaging = MessagingApi(**filter_kwargs(MessagingApi.__init__, input_args))
-        self.sensors = SensorsApi(**filter_kwargs(SensorsApi.__init__, input_args))
-        self.lens = LensApi(**filter_kwargs(LensApi.__init__, input_args))
-        self.kafka = KafkaApi(**filter_kwargs(KafkaApi.__init__, input_args))
+        self._lens = LensApi(**filter_kwargs(LensApi.__init__, input_args))
         self.agents = AgentsApi(**filter_kwargs(AgentsApi.__init__, input_args))
+
+    @property
+    def lens(self) -> LensApi:
+        """Deprecated: the lens API is replaced by the agents API (`client.agents`)."""
+        warnings.warn(
+            "The lens API is deprecated and will be removed in a future release. Use client.agents instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return self._lens

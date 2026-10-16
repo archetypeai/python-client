@@ -1,8 +1,7 @@
-from typing import Dict, Union
+from typing import Iterator, Union
 
 import logging
 import os
-import json
 
 from requests_toolbelt import MultipartEncoder
 
@@ -17,20 +16,39 @@ class FilesApiBase(ApiBase):
         api_endpoint = self._get_endpoint(self.api_endpoint, "files/info")
         return self.requests_get(api_endpoint)
 
-    def get_metadata(self, shard_index: int = -1, max_items_per_shard: int = -1, file_id: Union[str, None] = None) -> dict:
-        """Gets a list of metadata about any files your org has uploaded to the Archetype AI platform.
+    def get_metadata(
+        self,
+        limit: Union[int, None] = None,
+        after: Union[str, None] = None,
+        before: Union[str, None] = None,
+        file_id: Union[str, None] = None,
+    ) -> dict:
+        """Gets one page of metadata about the files your org has uploaded to the Archetype AI platform.
 
-        Use the shard_index and max_items_per_shard to retrieve metadata about a subset of files.
+        The page is `{"data": [...], "has_more": bool, "next_cursor": str | None, "prev_cursor": str | None}`,
+        newest first, with up to `limit` files (default 100, at most 1000). Pass a page's `next_cursor` as
+        `after` to fetch the following page, or its `prev_cursor` as `before` to step back; the two are
+        mutually exclusive. Use `iter_metadata` to walk every file.
 
-        Use the file_id argument to retrieve the metadata for a specific file.
+        Use the file_id argument to retrieve the metadata for a specific file instead.
         """
         if file_id is None:
             api_endpoint = self._get_endpoint(self.api_endpoint, "files/metadata")
-            params = {"shard_index": shard_index, "max_items_per_shard": max_items_per_shard}
+            params = {k: v for k, v in {"limit": limit, "after": after, "before": before}.items() if v is not None}
         else:
             api_endpoint = self._get_endpoint(self.api_endpoint, f"files/metadata/{file_id}")
             params = {}
         return self.requests_get(api_endpoint, params=params)
+
+    def iter_metadata(self, limit: int = 100) -> Iterator[dict]:
+        """Yields the metadata of every file your org has uploaded, newest first, fetching `limit` files per request."""
+        after: Union[str, None] = None
+        while True:
+            page = self.get_metadata(limit=limit, after=after)
+            yield from page["data"]
+            after = page.get("next_cursor")
+            if not page.get("has_more") or after is None:
+                return
 
 
 class LocalFilesApi(FilesApiBase):
@@ -127,28 +145,11 @@ class LocalFilesApi(FilesApiBase):
         return success
 
 
-class S3FilesApi(FilesApiBase):
-    """API for working with Amazon s3 files."""
-
-    def upload(self, filenames: list[str], credentials: Union[Dict[str, str], None] = None, batch_size: int = 64) -> dict:
-        """Uploads a list of s3 files directly to the Archetype AI platform."""
-        api_endpoint = self._get_endpoint(self.api_endpoint, "files/s3")
-        num_files = len(filenames)
-        response_data = []
-        for batch_start in range(0, num_files, batch_size):
-            batch_end = min(batch_start + batch_size, num_files)
-            data_payload = {"credentials": credentials, "filenames": filenames[batch_start:batch_end]}
-            response_data.append(self.requests_post(api_endpoint, data_payload=json.dumps(data_payload)))
-        return response_data
-
-
 class FilesApi(FilesApiBase):
     """Main class for handling all file API calls."""
 
     local: LocalFilesApi
-    s3: S3FilesApi
 
     def __init__(self, api_key: str, api_endpoint: str) -> None:
         super().__init__(api_key, api_endpoint)
         self.local = LocalFilesApi(api_key, api_endpoint)
-        self.s3 = S3FilesApi(api_key, api_endpoint)

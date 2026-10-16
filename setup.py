@@ -26,7 +26,6 @@ setup(
         "requests-toolbelt==1.0.0",
         "websockets>=12.0,<16",
         "websocket-client>=1.8.0,<2",
-        "kafka-python>=2.3.1,<3",
         "httpx>=0.28.1,<0.29",
         "httpx-sse>=0.4.3,<0.5",
         "pyyaml>=6.0.2,<7",

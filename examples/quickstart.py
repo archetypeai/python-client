@@ -1,68 +1,59 @@
-# An example that demonstrates how to hook up a video and stream it through a custom lens.
+# A quick start that runs a Manual Generation (MGA) agent on a short procedure video.
+#
+# Lifecycle: blueprints -> bundles -> instances
+#   upload the video, bundle the canonical `mga` blueprint, run it, read the results.
+#
+# Default input is example_data/mga_quick_start_ac_capacitor.mp4 (replacing an
+# air conditioner capacitor). Pass --filename for your own video.
 # usage:
-#   python -m examples.quickstart --api_key=<YOUR_API_KEY> --filename=<VIDEO_FILE_ID>
+#   python -m examples.quickstart --api_key=<YOUR_API_KEY>
 import logging
+import uuid
 
-from archetypeai import ArchetypeAI, ArgParser
+from archetypeai import ArchetypeAI, ArgParser, pformat
+
 
 def main(args):
     # Create a new client using your unique API key.
     client = ArchetypeAI(args.api_key, api_endpoint=args.api_endpoint)
 
-    # Upload the video file to the archetype platform.
-    file_response = client.files.local.upload(args.filename)
+    # Upload the video file to the Archetype AI platform.
+    file_id = client.files.local.upload(args.filename)["file_id"]
+    logging.info(f"Uploaded file_id: {file_id}")
 
-    # Create a custom lens and automatically launch the lens session.
-    client.lens.create_and_run_lens(f"""
-       lens_name: Custom Activity Monitor
-       lens_config:
-        model_parameters:
-            model_version: Newton::c2_4_7b_251215a172f6d7
-            instruction: {args.instruction}
-            focus: {args.focus}
-            temporal_focus: 5
-        input_streams:
-            - stream_type: video_file_reader
-              stream_config:
-                file_id: {file_response['file_id']}
-        output_streams:
-            - stream_type: server_sent_events_writer
-    """, session_callback, client=client, args=args)
+    # Bundle the canonical Manual Generation blueprint, ready to run.
+    blueprint_id = client.agents.blueprints.get("mga")["id"]
+    bundle_name = f"quickstart_{uuid.uuid4().hex[:8]}"
+    bundle_id = client.agents.bundles.create(blueprint=blueprint_id, name=bundle_name)["id"]
+    logging.info(f"Created bundle_id: {bundle_id}")
 
-def session_callback(
-        session_id: str,
-        session_endpoint: str,
-        client: ArchetypeAI,
-        args: dict
-    ) -> None:
-    """Main function to run the logic of a custom lens session."""
-    # Validate the session is ready.
-    event_message = {"type": "session.validate"}
-    response = client.lens.sessions.process_event(session_id, event_message)
-    assert response["event_data"]["is_valid"], response
+    agent_id = None
+    try:
+        # Run the bundle on the video and wait for the agent to finish.
+        agent_id = client.agents.bundles.run(bundle_id, source=[file_id])["id"]
+        logging.info(f"Launched agent_id: {agent_id}")
+        agent = client.agents.instances.wait_until_done(agent_id, timeout_sec=args.max_run_time_sec)
+        status = agent.get("status")
+        logging.info(f"Agent finished with status: {status}")
 
-    # Create a SSE reader to read the output of the lens.
-    sse_reader = client.lens.sessions.create_sse_consumer(
-        session_id, max_read_time_sec=args.max_run_time_sec)
-
-    # Read events from the SSE stream until either the last message is
-    # received or the max read time has been reached.
-    for event in sse_reader.read(block=True):
-        logging.info(f"[sse_reader] {event}")
-
-    # Close any active reader.
-    sse_reader.close()
+        if status == "completed":
+            results = client.agents.instances.get_results(agent_id)
+            logging.info(f"Agent results: {pformat(results)}")
+        else:
+            events = client.agents.instances.get_events(agent_id)
+            logging.error(f"Agent did not complete: {pformat(events)}")
+    finally:
+        # Delete the agent run, then the bundle, so repeated runs do not accumulate them in your org.
+        # A bundle cannot be deleted while an agent run still references it.
+        if agent_id:
+            client.agents.instances.delete(agent_id)
+        client.agents.bundles.delete(bundle_id)
 
 
 if __name__ == "__main__":
     parser = ArgParser()
-    parser.add_argument("--filename", required=True, type=str)
-    parser.add_argument("--instruction", default="Analyze the video with the following focus.", type=str)
-    parser.add_argument("--focus", default="Describe the actions in the video.", type=str)
+    parser.add_argument("--filename", default="example_data/mga_quick_start_ac_capacitor.mp4", type=str)
     parser.add_argument("--max_run_time_sec", default=-1.0, type=float)
     args = parser.parse_args(configure_logging=True)
-
-    # Validate the input.
-    assert args.filename.endswith(".mp4"), "Enter an .mp4 video file"
 
     main(args)

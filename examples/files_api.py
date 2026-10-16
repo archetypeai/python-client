@@ -22,15 +22,21 @@ def main(args):
     response_data = client.files.get_info()
     logging.info(f"api response: {response_data}")
 
-    # List metadata for all files visible across your org in the Archetype AI platform.
+    # List the first page of file metadata (newest first, up to 100 files) with the cursors to page on.
     logging.info(f"Checking file metadata")
     response_data = client.files.get_metadata()
     logging.info(f"api response: {response_data}")
 
-    # List just a subset of files, breaking the files into groups, and returning the first shard.
+    # Page through the files 10 at a time: pass a page's next_cursor as `after` to get the following one.
     logging.info(f"Checking file metadata")
-    response_data = client.files.get_metadata(shard_index=0, max_items_per_shard=10)
-    logging.info(f"api response: {response_data}")
+    page = client.files.get_metadata(limit=10)
+    while page["has_more"]:
+        page = client.files.get_metadata(limit=10, after=page["next_cursor"])
+        logging.info(f"api response: {page}")
+
+    # Or walk every file without handling cursors yourself.
+    for file_metadata in client.files.iter_metadata():
+        logging.info(f"file: {file_metadata['file_id']}")
 
 
 if __name__ == "__main__":
