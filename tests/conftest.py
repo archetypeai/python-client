@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 
 import pytest
 
@@ -32,3 +33,21 @@ def uploaded_files(client: ArchetypeAI) -> list[str]:
         except Exception as exc:
             # Best-effort cleanup: ignore deletion failures but log for debugging.
             print(f"Warning: failed to delete uploaded file {file_id!r}: {exc}")
+
+
+@pytest.fixture
+def project(client: ArchetypeAI) -> str:
+    """Creates a project for the test, then deletes its blueprints and the project after the test.
+
+    The test deletes everything else it created in the project first: an agent run's
+    package, deployment and sessions, evals and optimizations.
+    """
+    project_id = client.projects.create(f"python_client_test_{uuid.uuid4().hex[:8]}")["id"]
+    yield project_id
+    try:
+        for blueprint in client.agents.blueprints.list(project_id=project_id).get("data", []):
+            client.agents.blueprints.delete(blueprint["id"])
+        client.projects.delete(project_id)
+    except Exception as exc:
+        # Best-effort cleanup: ignore deletion failures but log for debugging.
+        print(f"Warning: failed to delete project {project_id!r}: {exc}")

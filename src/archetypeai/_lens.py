@@ -6,6 +6,7 @@ import time
 import yaml
 
 from archetypeai._base import ApiBase
+from archetypeai._common import DEFAULT_CLIENT
 from archetypeai._lens_session_socket import LensSessionSocket
 from archetypeai._sse import ServerSideEventsReader
 
@@ -15,8 +16,8 @@ class SessionsApi(ApiBase):
 
     session_socket_cache: dict = {}
 
-    def __init__(self, api_key: str, api_endpoint: str) -> None:
-        super().__init__(api_key, api_endpoint)
+    def __init__(self, api_key: str, api_endpoint: str, client: str = DEFAULT_CLIENT) -> None:
+        super().__init__(api_key, api_endpoint, client=client)
 
     def __del__(self):
         self.close()
@@ -52,7 +53,8 @@ class SessionsApi(ApiBase):
 
     def connect(self, session_id: str, session_endpoint: str) -> bool:
         try:
-            socket = LensSessionSocket(session_endpoint, {"Authorization":f"Bearer {self.api_key}"})
+            # A copy: the socket worker adds a User-Agent to the header it is given.
+            socket = LensSessionSocket(session_endpoint, dict(self.auth_headers))
             self.session_socket_cache[session_id] = socket
         except Exception as exception:
             logging.exception(f"Failed to connect to session at {session_endpoint}")
@@ -82,8 +84,7 @@ class SessionsApi(ApiBase):
     def create_sse_consumer(self, session_id: str, max_read_time_sec: float = -1.0) -> ServerSideEventsReader:
         """Creates a new server-side-event consumer and starts it in a background thread."""
         api_endpoint = self._get_endpoint(self.api_endpoint, f"lens/sessions/consumer/{session_id}")
-        headers = {"Authorization":f"Bearer {self.api_key}"}
-        sse_consumer = ServerSideEventsReader(api_endpoint, headers, max_read_time_sec)
+        sse_consumer = ServerSideEventsReader(api_endpoint, self.auth_headers, max_read_time_sec)
         return sse_consumer
     
     def close(self) -> bool:
@@ -102,9 +103,9 @@ class LensApi(ApiBase):
 
     sessions: SessionsApi
 
-    def __init__(self, api_key: str, api_endpoint: str) -> None:
-        super().__init__(api_key, api_endpoint)
-        self.sessions = SessionsApi(api_key, api_endpoint)
+    def __init__(self, api_key: str, api_endpoint: str, client: str = DEFAULT_CLIENT) -> None:
+        super().__init__(api_key, api_endpoint, client=client)
+        self.sessions = SessionsApi(api_key, api_endpoint, client=client)
 
     def get_info(self) -> dict:
         """Gets the high-level info for all lenses across your org."""

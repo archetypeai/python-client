@@ -6,6 +6,7 @@ import os
 from requests_toolbelt import MultipartEncoder
 
 from archetypeai._base import ApiBase
+from archetypeai._common import DEFAULT_CLIENT
 
 
 class FilesApiBase(ApiBase):
@@ -150,6 +151,6 @@ class FilesApi(FilesApiBase):
 
     local: LocalFilesApi
 
-    def __init__(self, api_key: str, api_endpoint: str) -> None:
-        super().__init__(api_key, api_endpoint)
-        self.local = LocalFilesApi(api_key, api_endpoint)
+    def __init__(self, api_key: str, api_endpoint: str, client: str = DEFAULT_CLIENT) -> None:
+        super().__init__(api_key, api_endpoint, client=client)
+        self.local = LocalFilesApi(api_key, api_endpoint, client=client)

@@ -1,12 +1,16 @@
-# An example that takes an OSM (Operational State Monitoring) agent through its
-# full lifecycle on your own labeled data: optimize, promote, eval, then run.
+# An example that takes an OSM (Operational State Monitoring) agent through its full lifecycle
+# on your own labeled data, in four phases: develop, build, deploy and run.
 #
-#   1. Upload the training, validation, test and delivery files.
-#   2. Optimize the canonical `osm` blueprint: each trial fits a classifier on the
-#      training files and is scored on the validation files.
-#   3. Promote the best trial to a blueprint of your own.
-#   4. Eval that blueprint once on the held-out test files.
-#   5. Bundle it and run it on the delivery files, whose labels are unknown.
+#   Develop: upload the training, validation, test and delivery files. Copy the
+#     canonical `osm` blueprint into a project and optimize it: each trial fits a
+#     classifier on the training files and is scored on the validation files.
+#     Promote the best trial to a blueprint of your own, then eval that blueprint
+#     once on the held-out test files.
+#   Build: package the promoted blueprint for the platform.
+#   Deploy: deploy the package as batch, and later as serving.
+#   Run: on the batch deployment, run a session on the delivery files, whose labels
+#     are unknown. On the serving deployment, open a session and query it with the
+#     first rows of a delivery file, sent inline.
 #
 # --data_dir holds one folder per role, each with CSV files (plain or gzipped,
 # gzipped ones are unpacked before upload):
@@ -39,7 +43,14 @@ import tempfile
 
 from archetypeai import ArchetypeAI, ArgParser, pformat
 
-from examples.agents.common import require
+from examples.agents.common import (
+    build_package,
+    get_or_copy_blueprint,
+    get_or_create_project,
+    read_channels,
+    require,
+    run_batch_and_serving,
+)
 
 # The canonical blueprint every optimization starts from.
 OSM_BLUEPRINT_KEY = "osm"
@@ -57,7 +68,7 @@ def role_files(data_dir: str, role: str) -> list[str]:
 
 def read_header(path: str) -> list[str]:
     """The column names of a plain or gzipped CSV file."""
-    with (gzip.open(path, "rt") if path.endswith(".gz") else open(path)) as f:
+    with gzip.open(path, "rt") if path.endswith(".gz") else open(path) as f:
         return f.readline().strip().split(",")
 
 
@@ -84,7 +95,7 @@ def main(args):
     timestamp_column, data_columns = columns[0], [c for c in columns[1:] if c != LABEL_COLUMN]
     logging.info(f"States: {states}; data columns: {data_columns}")
 
-    # Upload the data. Files are always uploaded, replacing any file of the same name,
+    # Develop: upload the data. Files are always uploaded, replacing any file of the same name,
     # so the run never scores a stale copy. The platform reads plain CSV, so a gzipped
     # file is unpacked to a scratch directory first.
     with tempfile.TemporaryDirectory() as scratch_dir:
@@ -113,7 +124,13 @@ def main(args):
     # Optimize the canonical blueprint. The overrides apply to every trial and carry
     # over to the promoted blueprint: the states to classify (required by `osm`) and
     # the input columns. The search space is what the trials vary.
-    blueprint_id = require(client.agents.blueprints.get(OSM_BLUEPRINT_KEY), "id")
+    # Copy the canonical blueprint into the examples project: everything derived from it,
+    # the optimization, the promoted blueprint and its package, is then in that project,
+    # where the package can be deployed.
+    project_id = get_or_create_project(client)
+    blueprint_id = get_or_copy_blueprint(
+        client, project_id, OSM_BLUEPRINT_KEY, f"{OSM_BLUEPRINT_KEY}-lifecycle-example"
+    )
     search_space = {
         "parameters": {
             "window_size": categorical([512]),
@@ -130,9 +147,7 @@ def main(args):
         validation_examples=[labeled_example(file_id) for file_id in validation_ids],
         max_trials=len(args.k_neighbors),
         search_space=search_space,
-        overrides={
-            "values": {"states": states, "timestamp_column": timestamp_column, "data_columns": data_columns}
-        },
+        overrides={"values": {"states": states, "timestamp_column": timestamp_column, "data_columns": data_columns}},
         name="OSM lifecycle example",
     )
     optimization_id = require(optimization, "id")
@@ -170,25 +185,29 @@ def main(args):
     primary = (evaluation.get("metrics_report") or {}).get("primary") or {}
     logging.info(f"Test score: {primary.get('target')}.{primary.get('name')}={primary.get('value')}")
 
-    # Deploy: bundle the promoted blueprint and run it on the unlabeled delivery files,
-    # one output per file.
-    bundle = client.agents.bundles.create(blueprint=promoted_id, name="OSM lifecycle example")
-    agent = client.agents.bundles.run(require(bundle, "id"), source=delivery_ids)
-    agent_id = require(agent, "id")
-    logging.info(f"Launched agent_id: {agent_id}")
-    agent = client.agents.instances.wait_until_done(agent_id, timeout_sec=args.max_run_time_sec)
-    if agent.get("status") != "completed":
-        events = client.agents.instances.get_events(agent_id)
-        logging.error(f"Agent did not complete: {pformat(events)}")
-        return
-    results = client.agents.instances.get_results(agent_id)
-    logging.info(f"Agent results: {pformat(results)}")
+    # Build: package the promoted blueprint, its fitted model resolved once.
+    # Deploy and run: deploy the package as batch and run a session on the unlabeled
+    # delivery files, one output per file. Then deploy it as serving, and query it with
+    # the first delivery file, --rows_per_query rows at a time. The promoted blueprint
+    # is kept.
+    package_id = build_package(client, promoted_id, name="OSM lifecycle example")
+    run_batch_and_serving(
+        client,
+        package_id,
+        delivery_ids,
+        read_channels(role_files(args.data_dir, "delivery")[0]),
+        args.rows_per_query,
+        args.num_queries,
+        args.max_run_time_sec,
+    )
 
 
 if __name__ == "__main__":
     parser = ArgParser()
     parser.add_argument("--data_dir", default="example_data/osm_larco", type=str)
     parser.add_argument("--k_neighbors", default=[5, 31], type=int, nargs="+", help="One trial per value")
+    parser.add_argument("--rows_per_query", default=1024, type=int, help="Delivery rows sent in each serving query")
+    parser.add_argument("--num_queries", default=3, type=int, help="Serving queries to send")
     parser.add_argument("--max_run_time_sec", default=-1.0, type=float, help="Per step; negative waits forever")
     args = parser.parse_args(configure_logging=True)
 

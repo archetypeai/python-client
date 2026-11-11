@@ -6,7 +6,7 @@ import secrets
 
 import requests
 
-from archetypeai._common import DEFAULT_ENDPOINT, safely_extract_response_data
+from archetypeai._common import DEFAULT_CLIENT, DEFAULT_ENDPOINT, safely_extract_response_data
 from archetypeai._errors import ApiError
 
 
@@ -19,10 +19,12 @@ class ApiBase:
                  num_retries: int = 3,
                  client_id: str = "",
                  request_timeout_sec: Optional[int] = None,
+                 client: str = DEFAULT_CLIENT,
                  ) -> None:
         self.api_key = api_key
         self.api_endpoint = api_endpoint
-        self.auth_headers = {"Authorization": f"Bearer {self.api_key}"}
+        # X-Atai-Client tags this traffic by caller in the platform's audit logs and analytics.
+        self.auth_headers = {"Authorization": f"Bearer {self.api_key}", "X-Atai-Client": client}
         self.num_retries = num_retries
         self.valid_response_codes = (200, 201)
         self.invalid_response_codes = [error_code for error_code in range(400, 417)]
