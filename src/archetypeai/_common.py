@@ -4,6 +4,7 @@ import inspect
 import requests
 
 DEFAULT_ENDPOINT = "https://platform.u1.archetypeai.app/api"
+DEFAULT_CLIENT = "sdk"
 
 
 def safely_extract_response_data(response: requests.Response) -> Dict:
